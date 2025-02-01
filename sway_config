@@ -1,0 +1,252 @@
+# Default config for sway
+#
+# Copy this to ~/.config/sway/config and edit it to your liking.
+#
+# Read `man 5 sway` for a complete reference.
+
+gaps inner 8px
+# gaps outer 8px
+
+font pango: SourceCodePro Large 6
+
+# Use my Integrated GPU
+exec --no-startup-id "export DRI_PRIME=0"
+
+
+### Variables
+
+# Mod1 for Alt key. Mod4 for Win key
+set $mod Mod4
+
+# Home row direction keys, like vim
+set $left h
+set $down j
+set $up k
+set $right l
+
+# Your preferred terminal emulator
+set $term foot
+
+# Your preferred application launcher
+set $menu wofi --show drun
+
+
+### Wallpaper
+# "/home/Raj/.local/share/wallpapers/Dark_Moon.jpg" \
+output * bg \
+    "/home/Raj/.local/share/wallpapers/My_wallpaper/Alien_spaceships_wallpaper.jpg" \
+    fill
+
+# Example configuration:
+#
+#   output HDMI-A-1 resolution 1920x1080 position 1920,0
+
+# Name of your outputs by running: swaymsg -t get_outputs
+
+### Idle configuration
+
+### Input configuration swaymsg -t get_inputs
+
+# input "1:1:AT_Translated_Set_2_keyboard" {
+input "type:keyboard" {
+    repeat_delay 200
+    repeat_rate 60
+}
+
+# input "12538:768:USB_Optical_Mouse" {
+input "type:mouse" {
+    natural_scroll disabled
+    dwt enabled
+    tap enabled
+    middle_emulation enabled
+    repeat_delay 200
+    repeat_rate 200
+    accel_profile adaptive
+    pointer_accel 1
+}
+
+# input "1267:12826:ELAN0787:00_04F3:321A_Touchpad" {
+input "type:touchpad" {
+    natural_scroll enabled
+    dwt enabled
+    tap enabled
+    middle_emulation enabled
+    repeat_delay 200
+    repeat_rate 200
+    accel_profile adaptive
+    pointer_accel .95
+}
+
+### Key bindings
+    ### Custom config
+
+    bindsym $mod+Alt+P exec bash -c "systemctl poweroff --now"
+    bindsym $mod+Alt+R exec bash -c "systemctl reboot --now"
+    bindsym $mod+Alt+V exec bash -c \
+        "wf-recorder --file=$HOME/Videos/WF_Recorder/recording_$(date +%d-%b-%Y_%H:%M:%S).mp4"
+    bindsym $mod+Alt+B exec bash -c \
+        "wf-recorder -g '$(slurp)' --file=$HOME/Videos/WF_Recorder/recording_$(date +%d-%b-%Y_%H:%M:%S).mp4"
+    bindsym $mod+Alt+C exec bash -c "kill -INT $(pidof wf-recorder)"
+    bindsym Print exec bash -c "grim ~/Pictures/GRIM_SCREENSHOTS/screenshot$(date +%d-%b-%Y_%H:%M:%S).png"
+    bindsym $mod+Print exec bash -c "grim -g '$(slurp)' ~/Pictures/GRIM_SCREENSHOTS/screenshot$(date +%d-%b-%Y_%H:%M:%S).png"
+    bindsym $mod+Shift+s exec bash -c "grim -g '$(slurp)' ~/Pictures/GRIM_SCREENSHOTS/screenshot$(date +%d-%b-%Y_%H:%M:%S).png"
+    xwayland enable
+
+    set $gnome_schema org.gnome.desktop.interface
+    exec_always {
+        gsettings set $gnome_schema gtk-theme 'Breeze'
+        gsettings set $gnome_schema icon-theme 'Breeze-dark'
+    }
+
+    # for_window [class=".*"] opacity 0.98
+    for_window [app_id="foot"] opacity 0.9
+    for_window [app_id="waterfox"] opacity 1
+
+    # client.focused <border-color> <background-color> <text-color> <indicator-color>
+    client.focused #4C8CFF #2E3440 #E1E1E6 #4C6BAA
+    client.unfocused #4C4F99 #2E3440 #D8DEE9 #4C4F58
+
+    # Start a terminal
+    bindsym $mod+Return exec $term
+
+    # Kill focused window
+    bindsym $mod+Shift+q kill
+
+    # Start your launcher
+    #bindsym $mod+d exec $menu
+    bindsym Alt+Space exec $menu
+    bindsym Alt+e exec dolphin
+    #bindsym Mod4+Alt+Space exec wofi --show run
+
+    # mouse button for dragging.
+    floating_modifier $mod normal
+
+    # Reload the configuration file
+    bindsym $mod+Shift+c reload
+
+    # Exit sway (logs you out of your Wayland session)
+    bindsym $mod+Shift+E exec swaymsg exit
+    bindsym Ctrl+Alt+T exec alacritty
+    bindsym Alt+T exec konsole
+
+    # Move your focus around
+    bindsym $mod+$left focus left
+    bindsym $mod+$down focus down
+    bindsym $mod+$up focus up
+    bindsym $mod+$right focus right
+
+    # Move the focused window with the same, but add Shift
+    bindsym $mod+Shift+$left move left
+    bindsym $mod+Shift+$down move down
+    bindsym $mod+Shift+$up move up
+    bindsym $mod+Shift+$right move right
+    # Ditto, with arrow keys
+    bindsym $mod+Shift+Left move left
+    bindsym $mod+Shift+Down move down
+    bindsym $mod+Shift+Up move up
+    bindsym $mod+Shift+Right move right
+
+### Workspaces:
+
+    # Switch to workspace
+    bindsym $mod+1 workspace number 1
+    bindsym $mod+2 workspace number 2
+    bindsym $mod+3 workspace number 3
+    bindsym $mod+4 workspace number 4
+    bindsym $mod+5 workspace number 5
+    bindsym $mod+6 workspace number 6
+    bindsym $mod+7 workspace number 7
+    bindsym $mod+8 workspace number 8
+    bindsym $mod+9 workspace number 9
+    bindsym $mod+0 workspace number 10
+
+    # Move focused container to workspace
+    bindsym $mod+Shift+1 move container to workspace number 1
+    bindsym $mod+Shift+2 move container to workspace number 2
+    bindsym $mod+Shift+3 move container to workspace number 3
+    bindsym $mod+Shift+4 move container to workspace number 4
+    bindsym $mod+Shift+5 move container to workspace number 5
+    bindsym $mod+Shift+6 move container to workspace number 6
+    bindsym $mod+Shift+7 move container to workspace number 7
+    bindsym $mod+Shift+8 move container to workspace number 8
+    bindsym $mod+Shift+9 move container to workspace number 9
+    bindsym $mod+Shift+0 move container to workspace number 10
+    # Note: workspaces can have any name you want, not just numbers.
+    # We just use 1-10 as the default.
+
+### Layout stuff:
+
+    # respectively.
+    bindsym $mod+b splith
+    bindsym $mod+v splitv
+
+    # Switch the current container between different layout styles
+    bindsym $mod+s layout stacking
+    bindsym $mod+w layout tabbed
+    bindsym $mod+e layout toggle split
+
+    # Make the current focus fullscreen
+    bindsym $mod+f fullscreen
+
+    # Toggle the current focus between tiling and floating mode
+    bindsym $mod+Shift+space floating toggle
+
+    # Swap focus between the tiling area and the floating area
+    bindsym $mod+space focus mode_toggle
+
+    # Move focus to the parent container
+    bindsym $mod+a focus parent
+
+### Scratchpad:
+
+    # Sway has a "scratchpad", which is a bag of holding for windows.
+    # You can send windows there and get them back later.
+
+    # Move the currently focused window to the scratchpad
+    bindsym $mod+Shift+minus move scratchpad
+
+    # Show the next scratchpad window or hide the focused scratchpad window.
+    # If there are multiple scratchpad windows, this command cycles through them.
+    bindsym $mod+minus scratchpad show
+
+### Resizing containers:
+
+mode "resize" {
+    # left will shrink the containers width
+    # right will grow the containers width
+    # up will shrink the containers height
+    # down will grow the containers height
+    bindsym $left resize shrink width 10px
+    bindsym $down resize grow height 10px
+    bindsym $up resize shrink height 10px
+    bindsym $right resize grow width 10px
+
+    # Ditto, with arrow keys
+    bindsym Left resize shrink width 10px
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+}
+bindsym $mod+r mode "resize"
+
+# Utilities:
+
+    # Special keys to adjust volume via PulseAudio
+    bindsym --locked XF86AudioMute exec pactl set-sink-mute \@DEFAULT_SINK@ toggle
+    bindsym --locked XF86AudioLowerVolume exec pactl set-sink-volume \@DEFAULT_SINK@ -5%
+    bindsym --locked XF86AudioRaiseVolume exec pactl set-sink-volume \@DEFAULT_SINK@ +5%
+    bindsym --locked XF86AudioMicMute exec pactl set-source-mute \@DEFAULT_SOURCE@ toggle
+    # Special keys to adjust brightness via brightnessctl
+    bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-
+    bindsym --locked XF86MonBrightnessUp exec brightnessctl set 5%+
+    # Special key to take a screenshot with grim
+
+# Status Bar:
+
+bar {
+    swaybar_command waybar
+}
+
+exec /usr/lib/polkit-kde-authentication-agent-1
+
+include /etc/sway/config.d/*
+

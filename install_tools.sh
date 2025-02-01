@@ -110,6 +110,8 @@ install xf86-video-amdgpu
 install lib32-vulkan-radeon
 install lib32-amdvlk
 
+# Install sway (The tiling window manager)
+install sway swaybg swayidle swayimg swaylock swaync
 
 echo -e "${green}Miscellaneous Tools${no_col}"
 # Miscellaneous Tools & Utilities
@@ -142,7 +144,6 @@ install dhclient
 install ffmpeg
 install feh
 install foot
-install lf
 install brightnessctl
 install qemu
 install termdown
@@ -153,4 +154,18 @@ install wireshark-qt
 install wofi
 install htop
 install tmux
+install dust
+install yazi
+install lazygit
+install btop
+install xdot
+install cpu-x
+install mpd ncmpcpp
+install rust rust-src
+install psmisc
+# install rsyslog
+install syslog-ng
+install nvtop
+install powertop
+install wf-recorder
 
