@@ -1,0 +1,38 @@
+#!/bin/bash
+
+Editor="$1"
+JournalFileName="${HOME}/journalD/date_$(date +%d-%b-%Y_).md"
+green="\033[3;32m"
+no_col="\033[0m"
+if [[ -n "$Editor" ]]; then
+    command -v "$Editor" > /dev/null 2>&1
+    [[ $? -ne 0 ]] && Editor="vim"
+    if [[ ! -s "${JournalFileName}" ]]; then
+        echo "### Todays tasklist and journal"          >> ${JournalFileName}
+        echo ""                                         >> ${JournalFileName}
+        echo "[] 30 minutes Typing"                     >> ${JournalFileName}
+        echo "[] Programming"                           >> ${JournalFileName}
+        echo "[] 30 minutes Language learning"          >> ${JournalFileName}
+        echo "[] Complete Tryhackme's one room today"   >> ${JournalFileName}
+        echo "[] OverTheWire bandit"                    >> ${JournalFileName}
+        echo -e "\n"                                    >> ${JournalFileName}
+        echo "[Small goal]"                             >> ${JournalFileName}
+        echo ""                                         >> ${JournalFileName}
+        echo "[EOH]"                                    >> ${JournalFileName}
+        echo -e "\n"                                    >> ${JournalFileName}
+        echo "[Personal]"                               >> ${JournalFileName}
+        echo ""                                         >> ${JournalFileName}
+        echo "[EOF]"                                    >> ${JournalFileName}
+        echo ""                                         >> ${JournalFileName}
+    fi
+    [[ "$Editor" == "vim" ]] && /usr/bin/vim -c 'colorscheme slate' "${JournalFileName}" || \
+        ${Editor} "$JournalFileName"
+    exit 0
+fi
+
+if [[ ! -f "$JournalFileName" ]]; then
+    touch "$JournalFileName"
+    echo -e "Created $green"$JournalFileName"$no_col"
+else
+    echo -e "File already exists: $green"$JournalFileName"$no_col"
+fi

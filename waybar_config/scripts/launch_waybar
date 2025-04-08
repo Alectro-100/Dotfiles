@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sleep 1
+kill $(pidof waybar)
+/usr/bin/waybar -c $HOME/.config/waybar/config.jsonc -s $HOME/.config/waybar/style.css

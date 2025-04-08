@@ -1,0 +1,17 @@
+#!/usr/bin/python3
+
+import sys
+
+def remove_trailing(input_file):
+    try:
+        with open(input_file, "r") as infile:
+            for line in infile:
+                print(f"{line.rstrip()}");
+    except FileNotFoundError as filenotfound:
+        print(f"Given file not found '{filenotfound}'");
+    except Exception as error:
+            print(f"An error occured '{error}'");
+
+if __name__ == "__main__":
+    input_arg1 = sys.argv[1]
+    remove_trailing(input_arg1);

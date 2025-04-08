@@ -1,0 +1,53 @@
+#!/bin/bash
+
+FLAG="$1"
+GIT_DIR="$HOME/DEV_DIR/GIT/ConfigFiles"
+SCRIPTS="$HOME/.path/scripts"
+
+# colors
+highlight="\033[1m"
+green="\033[38;2;100;255;40m"
+blue="\033[38;2;100;100;240m"
+red="\033[38;2;255;10;10m"
+no_col="\033[0m"
+
+function Copy() {
+    cp -r $HOME/.config/hypr/* "$GIT_DIR/hyprland_config/" && \
+        echo -e "Copied '${green}$HOME/.config/hypr/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/hyprland_config/'${no_col}"
+
+    cp $HOME/.vimrc.bak "$GIT_DIR/vim_config/vimrc" && \
+        echo -e "Copied '${green}$HOME/.vimrc.bak${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/vim_config/vimrc${no_col}'"
+    cp $HOME/.config/nvim/init.vim.bak "$GIT_DIR/neovim_config/init.vim" && \
+        echo -e "Copied '${green}$HOME/.config/nvim/init.vim.bak${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/neovim_config/init.vim${no_col}'"
+
+    cp $HOME/.SHELL_RC "$GIT_DIR/shell_config/SHELL_RC" && \
+        echo -e "Copied '${green}$HOME/.SHELL_RC${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/shell_config/SHELL_RC${no_col}'"
+    cp $HOME/.bashrc "$GIT_DIR/shell_config/bashrc" && \
+        echo -e "Copied '${green}$HOME/.bashrc${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/shell_config/bashrc${no_col}'"
+
+    cp -r $HOME/.config/sway/* "$GIT_DIR/sway_config/" && \
+        echo -e "Copied '${green}$HOME/.config/sway/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/sway_config/${no_col}'"
+    cp $HOME/.config/foot/foot.ini "$GIT_DIR/sway_config/foot/" && \
+        echo -e "Copied '${green}$HOME/.config/foot/foot.ini${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/sway_config/foot/${no_col}'"
+
+    cp -r $HOME/.config/i3/* "$GIT_DIR/i3_config/" && \
+        echo -e "Copied '${green}$HOME/.config/i3/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/i3_config/${no_col}'"
+    # cp $HOME/.config/kitty/kitty.conf "$GIT_DIR/i3_config/kitty/"
+
+    cp -r $HOME/.config/waybar/* "$GIT_DIR/waybar_config/" && \
+        echo -e "Copied '${green}$HOME/.config/waybar/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/waybar_config/${no_col}'"
+
+    cp -r $SCRIPTS/* $GIT_DIR/scripts && \
+        echo -e "Copied '${green}$SCRIPTS/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/scripts${no_col}'"
+}
+
+if [[ ! -d "$GIT_DIR" ]]; then
+    echo "Given Directory doesn't exits '$GIT_DIR'"
+    exit 1
+fi
+
+if [[ $FLAG == "cd" ]]; then
+    builtin cd "$GIT_DIR"
+fi
+Copy
+

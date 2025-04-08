@@ -1,0 +1,41 @@
+#!/bin/bash
+
+### Colors
+green="\033[1;32m"
+mild_green="\033[38;2;10;110;10m"
+no_col="\033[0m"
+
+### Arguments
+NUM="$1"
+flag="$2"
+
+### File
+FILE="$HOME/Obsidian/Programming/Projects/Project"${NUM}".c++"
+
+if [[ $# -eq 0 ]] ; then
+    echo -e "Usage: ${mild_green}$(basename $0) <Index> <Editor>${no_col}"
+    exit 1
+fi
+
+if [[ "$NUM" -eq 0 ]] ; then
+    /usr/bin/vim $HOME/Obsidian/Programming/Projects.md
+    exit 0
+fi
+
+if [[ -n "$flag" ]]; then
+    if command -v "$flag" 1> /dev/null 2>&1 ; then
+        Editor="${flag}"
+    else
+        Editor="/usr/bin/vim"
+    fi
+    "$Editor" "$FILE"
+    exit 0
+fi
+
+if [[ ! -f "$FILE" ]]; then
+    touch "$FILE"
+    echo -e "Created ${green}$FILE${no_col}"
+else
+    echo -e "File Already Exists: ${green}$FILE${no_col}"
+fi
+

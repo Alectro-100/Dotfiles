@@ -1,0 +1,3 @@
+#!/bin/bash
+
+rclone mount --vfs-cache-mode writes --ignore-existing --delete-during --links --daemon ProtonDrive:/ $HOME/ProtonDrive

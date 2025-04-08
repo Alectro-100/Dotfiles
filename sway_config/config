@@ -1,0 +1,359 @@
+### Inner gaps
+gaps inner 2
+
+
+### Defaut Font
+font pango: SourceCodePro Large 6
+
+
+### Use my Integrated GPU
+exec "export DRI_PRIME=0"
+
+
+### Start foot server
+exec foot --server
+
+
+### Policykit agent
+exec '/usr/lib/polkit-kde-authentication-agent-1'
+
+
+### Sway lock
+
+# exec swayidle -w \
+#          timeout 400 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
+exec swayidle -w timeout 200 'swaylock -f -c 868686' \
+        timeout 200 'swaymsg "output * dpms off"' \
+        resume 'swaymsg "output * dpms on"' \
+        before-sleep 'swaylock -f -c 000000'
+
+
+### Waybar
+bar {
+    swaybar_command waybar
+}
+
+
+### Mod1 for Alt key. Mod4 for Win key
+set $mod Mod4
+
+
+### Vim bindings everywhere
+set $left h
+set $down j
+set $up k
+set $right l
+
+
+### Fav terminal emulator
+set $term footclient
+
+
+### My Application launcher
+set $menu wofi -W 40% -H 32% --allow-images --allow-markup --hide-scroll --prompt="Search" --show drun
+
+
+### Output devices
+    # My Wallpaper
+    output * background \
+        wallpapers/main.wallpaper \
+        fill
+    output * allow_tearing no
+    output * adaptive_sync on
+
+
+### Cursor will go vanish in 10 seconds (Seat devices)
+    seat * hide_cursor 10000
+
+
+### Enable Xwayland
+xwayland enabled
+
+
+### Input devices
+    input type:keyboard {
+        xkb_layout us,es,ru
+    }
+
+    # Any Keyboard
+    input "type:keyboard" {
+        repeat_delay 200
+        repeat_rate 60
+    }
+
+    # Optical Mouse with unique identifier for my setup
+    input "12538:768:USB_Optical_Mouse" {
+        natural_scroll disabled
+        pointer_accel 1
+        dwt enabled
+        accel_profile adaptive
+    }
+
+    # Any Trackpad
+    input "type:touchpad" {
+        dwt enabled                 # disable while typing
+        natural_scroll enabled      # Inverted scroll
+        tap enabled                 # enable taps (should not be disabled)
+        tap_button_map lrm          # lmr {(1 finger tap left click) (2 finger tap right click) (3 finger tap middle click)}
+        pointer_accel 1
+        drag enabled
+    }
+
+
+### Startup Applications
+    # exec --no-startup-id
+
+
+### Key bindings
+
+    # Bring my Text-fu terminal, who wants life anyway
+    bindsym $mod+Return exec $term
+    bindsym $mod+Shift+Return exec konsole
+
+    # Good File Manager
+    bindsym Alt+E exec dolphin
+
+    # Kill the focused windows because sometimes it feels good
+    bindsym $mod+Shift+q kill
+
+    # Lauch wofi, my friend who fetches all the applications for me
+    #bindsym $mod+d exec $menu
+    bindsym Alt+Space exec $menu
+
+    bindsym $mod+N exec $HOME/.config/waybar/scripts/launcher
+
+    # Mouse for dragging.
+    floating_modifier $mod normal
+
+    # Reload the configuration file and start the waybar
+    bindsym $mod+Shift+c exec swaymsg reload
+
+    # Exit sway (Kicks you out of your Wayland session)
+    bindsym $mod+Shift+E exec swaymsg exit
+
+    # Move your focus around VIM bindings!
+    bindsym $mod+$left focus left
+    bindsym $mod+$down focus down
+    bindsym $mod+$up focus up
+    bindsym $mod+$right focus right
+
+    # Move the focused window in floating mode, VIM like
+    bindsym $mod+Shift+$left move left
+    bindsym $mod+Shift+$down move down
+    bindsym $mod+Shift+$up move up
+    bindsym $mod+Shift+$right move right
+
+    # Exactly same thing, but with arrow keys
+    bindsym $mod+Shift+Left move left
+    bindsym $mod+Shift+Down move down
+    bindsym $mod+Shift+Up move up
+    bindsym $mod+Shift+Right move right
+
+    bindsym $mod+Ctrl+$left resize grow width 14px
+    bindsym $mod+Ctrl+$right resize shrink width 14px
+    bindsym $mod+Ctrl+$up resize grow height 14px
+    bindsym $mod+Ctrl+$down resize shrink height 14px
+
+
+### Workspaces:
+
+    # Switch to workspace
+    bindsym $mod+1 workspace number 1
+    bindsym $mod+2 workspace number 2
+    bindsym $mod+3 workspace number 3
+    bindsym $mod+4 workspace number 4
+    bindsym $mod+5 workspace number 5
+    bindsym $mod+6 workspace number 6
+
+    # Move focused container to workspace
+    bindsym $mod+Shift+1 move container to workspace number 1
+    bindsym $mod+Shift+2 move container to workspace number 2
+    bindsym $mod+Shift+3 move container to workspace number 3
+    bindsym $mod+Shift+4 move container to workspace number 4
+    bindsym $mod+Shift+5 move container to workspace number 5
+    bindsym $mod+Shift+6 move container to workspace number 6
+
+
+### Layout stuff:
+
+    # decide the spawn side of the new window
+    bindsym $mod+B splith
+    bindsym $mod+V splitv
+
+    # Toggle btween splith and splitv
+    bindsym $mod+TAB splitt
+
+    # Pop the stacking window from the container
+    bindsym $mod+U split none
+
+    # Switch the current container between different layout styles
+    bindsym $mod+S layout stacking
+    bindsym $mod+W layout tabbed
+    bindsym $mod+E layout toggle split
+
+    # Fullscreen!
+    bindsym $mod+F fullscreen
+
+    # Jump the focus between tiling and floating mode
+    bindsym $mod+Shift+Space floating toggle
+
+    # Swap focus between the tiling area and the floating area
+    bindsym $mod+Space focus mode_toggle
+
+    # Move focus to the parent container
+    bindsym $mod+A focus parent
+
+
+### Scratchpad:
+
+    # Sway has a "scratchpad", which is a bag of holding for windows.
+
+    # Move the focused window into scratchpad because It's deamon
+    bindsym $mod+Shift+minus move scratchpad
+
+    # Cycle through the windows inside scratchpad.
+    bindsym $mod+minus scratchpad show
+
+
+### Resizing containers:
+
+    bindsym $mod+r mode "resize"
+    mode "resize" {
+        # up will shrink the containers height
+        bindsym $up resize grow height 14px
+        # Down with grow the container height
+        bindsym $down resize shrink height 14px
+        # left will shrink the containers width
+        bindsym $left resize grow width 14px
+        # right will grow the containers width
+        bindsym $right resize shrink width 14px
+
+        bindsym Return mode "default"
+        bindsym Escape mode "default"
+    }
+
+### Utilities:
+
+    # Special keys to adjust volume via PulseAudio
+    bindsym --locked XF86AudioMute exec pactl set-sink-mute \@DEFAULT_SINK@ toggle
+    bindsym --locked XF86AudioLowerVolume exec pactl set-sink-volume \@DEFAULT_SINK@ -5%
+    bindsym --locked XF86AudioRaiseVolume exec pactl set-sink-volume \@DEFAULT_SINK@ +5%
+    bindsym --locked XF86AudioMicMute exec pactl set-source-mute \@DEFAULT_SOURCE@ toggle
+    # Special keys to adjust brightness via brightnessctl
+    bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-
+    bindsym --locked XF86MonBrightnessUp exec brightnessctl set 5%+
+
+    ## Win+Alt or $mod+Alt keybindings for systemctl related settings
+
+    # What's my selected screen resolution?
+    bindsym $mod+Shift+G exec bash -c \
+        '$(Resolution="$(slurp)" && notify-send "$Resolution")'
+
+    # Shutting down... Because I need a nap, you deserve one too (Win+Alt+Shift+P)
+    bindsym $mod+Alt+Shift+P exec bash -c \
+        "$(notify-send "Shutting down... because I need a nap" ; sleep 1 ; swaymsg exit ; systemctl poweroff --now)"
+
+    # Shutting down ($mod+Alt+P)
+    bindsym $mod+Alt+P exec bash -c \
+        "$(swaymsg exit ; systemctl poweroff --now)"
+
+    # Sometimes life just needs refresh ($mod+Alt+Shift+R)
+    bindsym $mod+Alt+Shift+R exec bash -c \
+        "$(notify-send 'REBOOTING... Sometimes you need to restart!' ; sleep 1 ; swaymsg exit ; systemctl reboot --now)"
+
+    # Just Reboot (Win+Alt+R)
+    bindsym $mod+Alt+R exec bash -c \
+        "$(swaymsg exit ; systemctl reboot --now)"
+
+    # I'm going Sleep (Win+Alt+Shift+delete)
+    bindsym $mod+Alt+Shift+delete exec bash -c \
+        "$(notify-send "I need some Rest"; sleep 2 ; systemctl suspend --now)"
+
+    # Sleep (Alt+Ctrl+delete)
+    bindsym $mod+Alt+delete exec bash -c \
+        "$(systemctl suspend --now)"
+
+    # Hybrid sleep, like sleep but cooler (Win+Alt+S)
+    bindsym $mod+Alt+S exec bash -c \
+        "$(systemctl hybrid-sleep --now)"
+
+    # Execute whatever the hell that script does... We don't judge
+    bindsym $mod+Q exec bash -c "foot -e $HOME/.scripts/exec_me"
+
+    # Journal time: Let's document the mess
+    bindsym Alt+J exec bash -c "foot -e $HOME/.scripts/Journal_me"
+
+    # List of Emojies in rofi-emoji
+    bindsym Alt+Shift+E exec rofi -modi emoji -show emoji
+
+    # Start recording fullscreen! (Win+Alt+V)
+    bindsym $mod+Alt+V exec bash -c \
+        "wf-recorder --file=$HOME/Videos/WF_Recorder/recording_$(date +%d-%b-%Y_%H:%M:%S).mp4"
+
+    # Start recording for selected screen (Win+Alt+B)
+    bindsym $mod+Alt+B exec bash -c \
+        "wf-recorder -g '$(slurp)' --file=$HOME/Videos/WF_Recorder/recording_$(date +%d-%b-%Y_%H:%M:%S).mp4"
+
+    # Stop recording send INT sig to the recorder (Win+Alt+C)
+    bindsym $mod+Alt+C exec bash -c \
+        "kill -INT $(pidof wf-recorder)"
+
+    # Take screenshot of fullscreen! (PrtSc)
+    bindsym Print exec bash -c \
+        "grim $HOME/Pictures/GRIM_SCREENSHOTS/screenshot$(date +%d-%b-%Y_%H:%M:%S).png"
+
+    # Screenshot of selected area (Win+PrtSc)
+    bindsym $mod+Print exec bash -c \
+        "grim -g '$(slurp)' $HOME/Pictures/GRIM_SCREENSHOTS/screenshot$(date +%d-%b-%Y_%H:%M:%S).png"
+
+    # Screenshot of selected area (Win+Shift+S)
+    bindsym $mod+Shift+s exec bash -c \
+        "grim -g '$(slurp)' $HOME/Pictures/GRIM_SCREENSHOTS/screenshot$(date +%d-%b-%Y_%H:%M:%S).png"
+
+    # Run system monitors
+    bindsym $mod+Escape exec foot -e bash -c \
+        "htop || (btop || echo 'Oh-oh... neither htop and btop are installed' ; sleep 4)"
+    bindsym Ctrl+Escape exec bash -c \
+        "foot -e btop || (foot -e htop || sudo pacman -Sy htop --noconfirm)"
+    bindsym Ctrl+Shift+Escape exec bash -c \
+        "plasma-systemmonitor || (foot -e htop || sudo pacman -Sy htop --noconfirm)"
+
+    ### Toggle
+    bindsym $mod+Alt+space input type:keyboard xkb_switch_layout next
+
+    ### Window rules
+    for_window {
+
+        # Set opacity for all windows
+        [app_id=".*"] opacity 0.96
+
+        # Border of newly spawned window
+        [class=".*"] border pixel 1
+
+        # Border of floating window
+        [class=".*"] default_floating_border pixel 1
+
+        # Transparancy levels for applications
+        [app_id="foot"] opacity 0.98
+        [app_id="waterfox|kitty"] opacity 1
+
+        # Enabele floating don't tile
+        [app_id="^waterfox$|^com.rtosta.zapzap$|^org.pulseaudio.pavucontrol$"] floating enable
+        [class="^Brave-browser$|^discord$"] floating enable
+    }
+
+    # Border padding
+    titlebar_padding 1
+
+    # client.focused <border-color> <background-color> <text-color> <indicator-color>
+
+    # Fancy focus colors, just to make it feel like you are in charge
+    client.focused #4C8CFF #6600AA #E1E1E6 #7B2FFF
+    client.unfocused #4C4F99 #444444 #D8DEE9 #444444
+
+
+### Additional configuration
+include /etc/sway/config.d/*
+
+# Documentation `man 5 sway`
+

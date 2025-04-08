@@ -1,0 +1,26 @@
+#!/bin/bash
+
+IMG="/DATA/VMs/QCOW2.qcow2"
+ISO="$HOME/Downloads/QUBE/Qubes-R4.2.4-x86_64.iso"
+
+flag="$1"
+
+if [[ "$flag" != 'boot' ]]; then
+    /usr/bin/qemu-system-x86_64 \
+        -m 4080 \
+        -cpu host \
+        -smp 6 \
+        -vga qxl \
+        -audiodev pa,id=devpa \
+        -display gtk,gl=on,show-cursor=on,show-menubar=on,grab-on-hover=off,zoom-to-fit=on,window-close=off -enable-kvm \
+        -drive file="$IMG",format="${IMG##*.}",if=virtio,media=disk
+            # -full-screen \
+else
+    /usr/bin/qemu-system-x86_64 -m 4080 \
+        -smp cpus=4 \
+        -vga qxl \
+        -display sdl,gl=on \
+        -boot b -drive file="$IMG",format=qcow2,if=virtio,media=disk -drive file="$ISO",media=cdrom \
+        -enable-kvm
+fi
+
