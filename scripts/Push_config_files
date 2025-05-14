@@ -1,0 +1,29 @@
+#!/bin/bash
+
+green="\033[38;2;0;255;0m"
+blue="\033[38;2;100;40;255m"
+red="\033[38;2;255;0;0m"
+no_col="\033[0m"
+GIT_DIR="${HOME}/DEV_DIR/GIT/ConfigFiles/"
+failure=0
+
+if [[ ! -d ${GIT_DIR} ]]; then
+    echo -e "'${blue}${GIT_DIR}${no_col}' doesn't exist you might want to update this"
+    exit 1
+fi
+
+echo -e "${green}Your git repository ${blue}${GIT_DIR}${no_col}${no_col}"
+cd "${GIT_DIR}"
+
+git reset --soft HEAD~1 || failure=$(( failure + 1 ))
+git add . || failure=$(( failure + 1 ))
+git reflog expire --expire=now --all
+git commit -m "CONFIG FILES" || failure=$(( failure + 1 ))
+git push origin main --force || failure=$(( failure + 1 ))
+
+if [[ $failure -eq 0 ]]; then
+    echo -e "${green}Successfully pushed your changes to Github.${no_col}"
+else
+    echo -e "${red}Exited, with errors during the script execution. Failures count: '$failure'${no_col}."
+fi
+

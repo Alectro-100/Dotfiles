@@ -1,0 +1,386 @@
+#!/bin/bash
+
+HISTFILE="/tmp/histfile"
+
+setopt hist_ignore_all_dups
+
+zstyle :compinstall filename '/home/Raj/.zshrc'
+autoload -Uz compinit
+compinit
+
+export LANG=en_US.UTF-8
+
+export HOME="/home/$(cat /etc/passwd | grep $(id -u) | cut -d ':' -f 1)"
+export PATH="$PATH:$HOME/.cargo/bin"                2> /dev/null
+export PATH="$PATH:$HOME/.npm-global/bin"           2> /dev/null
+export PATH="$PATH:/home/linuxbrew/.linuxbrew/bin"  2> /dev/null
+export PATH="$PATH:$HOME/.bin"                      2> /dev/null
+
+export WINEPREFIX="$HOME/wine"
+
+### Aliases
+alias ip="ip --color=auto"
+
+alias LS="eza --color=always --icons=always --octal-permissions --binary --across"
+alias l="eza --long --color=always --icons=always --group --octal-permissions --binary --across --sort=created --reverse"
+alias LA="eza --color=always --icons=always --group --octal-permissions --binary --across --almost-all"
+alias LL="eza --long --color=always --icons=always --sort=created --group --long --header --classify=always --octal-permissions --binary --across --total-size"
+alias lll="eza --long --color=always --icons=always --group --numeric --long --header --classify=always --octal-permissions --binary --across --total-size"
+
+alias ls="lsd --color=always --git --icon=always --group-dirs=first --classify 2> /dev/null"
+alias ll="lsd --long --color=always --git --icon=always --group-dirs=first --classify --permission octal --total-size 2> /dev/null"
+alias la="lsd --color=always --git --all --icon=always --group-dirs=first --classify --permission octal --total-size 2> /dev/null"
+
+alias diff="diff --color=auto"
+alias cp="echo -e '\033[38;2;240;80;100mUse rsync MF\033[0m'; return"
+alias bat="bat --color=always --decorations=never"
+alias catbat="bat --color=always --decorations=never --paging=never"
+alias batnp="bat --color=always --paging=never --decorations=never"
+alias batdecl="bat --color=always --paging=never --decorations=always"
+alias batCD="clear; bat --paging=never --decorations=never"
+alias grep="grep --color=always"
+alias dir="dir --color=always"
+alias MOD="rclone mount OneDrive:/ /home/Raj/OneDrive/ --daemon"
+alias UOD="sudo umount /home/Raj/OneDrive/ --force"
+alias ncdu="ncdu --color dark"
+alias ncduc="clear; ncdu --color dark"
+alias qemu="qemu-system-x86_64"
+alias firefox-dev="firefox-developer-edition"
+alias firefoxdev="firefox-developer-edition"
+alias sway_="env WLR_RENDERER=vulkan sway --unsupported-gpu 1> /tmp/sway.log 2>&1"
+alias VimBeGood="clear; docker run -it --rm brandoncc/vim-be-good:stable && echo && clear"
+alias CppDir="cd ~/DEV/GitRepos/C++/"
+alias sourceme="source ~/.zshrc.pre-oh-my-zsh"
+alias zshrc="clear; vim ~/.zshrc"
+alias vimrc="clear; vim ~/.vimrc"
+alias nvimrc="clear; nvim ~/.config/nvim/init.vim"
+alias yazi="EDITOR=nvim yazi"
+alias yazic="clear; EDITOR=nvim yazi"
+alias vimc="clear; vim"
+alias nvimc="clear; nvim"
+alias btopc="clear; btop"
+alias y="yazi"
+alias gtypistH="gtypist --personal-best --max-error=1.8 --no-welcome-screen --term-cursor --word-processor --always-sure"
+alias not_needed_pkg="pacman -Qtdq"
+alias clearcache="sudo pacman -Scc && yay -Scc"
+alias weather="curl wttr.in/24.5800,80.8369"
+alias diff="colordiff"
+alias feh="imv"
+alias nvtop="nvtop --delay 2"
+alias gs="git status"
+alias Fonts="fc-list | awk -F':' '{print $1}' | awk -F'/' '{print $6}' | awk -F'.' '{print $1}' | sort -u"
+alias swayconfig="vim $HOME/.config/sway/config"
+alias waybarconfig="nvim $HOME/.config/waybar/"
+alias CPP="cd $HOME/DEV_DIR/C_PlusPlus/incompleted_souls.dir && git status"
+alias C="cd $HOME/DEV_DIR/C_Lang && git status"
+alias Spanish="cd $HOME/Notes/Language/Spanish"
+alias NULL="/dev/null"
+alias M="$HOME/Music"
+alias mpv="mpv --volume=65"
+alias radeontop="radeontop --color"
+
+### Flatpak Applications
+alias scrivano="flatpak run com.github.scrivanolabs.scrivano"
+alias draw="flatpak run com.github.scrivanolabs.scrivano"
+alias tipp10="flatpak run com.gitlab.tipp10.tipp10"
+alias ktouch="flatpak run org.kde.ktouch"
+alias typing="flatpak run org.kde.ktouch"
+alias easyeffects="flatpak run com.github.wwmm.easyeffects"
+alias effects="flatpak run com.github.wwmm.easyeffects"
+alias zen="flatpak run app.zen_browser.zen"
+alias pomodoro="flatpak run org.jousse.vincent.Pomodorolm"
+alias pomodorolm="flatpak run org.jousse.vincent.Pomodorolm"
+alias discord="flatpak run com.discordapp.Discord"
+alias VideoEditor="flatpak run org.kde.kdenlive 2> /dev/null"
+alias calculator="flatpak run io.github.Qalculate.qalculate-qt"
+alias qcal="flatpak run io.github.Qalculate.qalculate-qt"
+alias systemmonitor="XDG_CURRENT_DESKTOP=KDE GTK_THEME=Adwaita:dark QT_QPA_PLATFORMTHEME=gtk plasma-systemmonitor"
+
+function Tor_proxy() {
+    u_set="{$1:-"NULL"}"
+    if [[ $u_set == "unset" ]]; then
+        unset http_proxy
+        unset https_proxy
+        exit 0
+    fi
+    export http_proxy="socks5://127.0.0.1:9050"
+    export https_proxy="socks5://127.0.0.1:9050"
+
+}
+
+function encode() {
+    local input="$1"
+    local should_save="$2"
+    local output_file_name="$3"
+
+    if [[ -d "$input" ]]; then
+        echo "We don't accept directories"
+    elif [[ -f "$input" ]]; then
+        echo "This is the file: $input"
+        [[ $should_save == "true" ]] && { cat "$input" | tr "A-Za-z" "N-ZA-Mn-za-m" > "$output_file_name"; } || \
+            { cat "$input" | tr "A-Za-z" "N-ZA-Mn-za-m"; }
+        else
+            [[ $should_save == "true" ]] && { echo "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" > "$output_file_name"; } || \
+                { echo "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" ; }
+    fi
+}
+
+function decode() {
+    local input="$1"
+    local should_save="$2"
+    local output_file_name="$3"
+
+    if [[ -d "$input" ]]; then
+        echo "We don't accept directories"
+    elif [[ -f "$input" ]]; then
+        echo "This is the file: $input"
+        [[ $should_save == "true" ]] && { cat "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" > "$output_file_name"; } || \
+            { cat "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" ; }
+    else
+        [[ $should_save == "true" ]] && { echo "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" > "$output_file_name"; } || \
+            { echo "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" ; }
+    fi
+}
+
+function rot13() {
+    local operation="$1"
+    local input="$2"
+    local should_save="$3"
+    local output_file="$4"
+
+    [[ $should_save == "-s" ]] && should_save="true" || should_save="false"
+
+    if [[ $# -gt 1 ]]; then
+        if [[ ! -f "$input" ]]; then
+            echo "Only file and Strings are allowed"
+        else
+            if [[ $operation =~ ^(encode|e|-e)$ ]]; then
+                encode "$input" "$should_save" "$output_file"
+            elif [[ $operation =~ ^(decode|d|-d)$ ]]; then
+                decode "$input" "$should_save" "$output_file"
+            fi
+        fi
+    else
+        echo "[ERROR]: At least two arguments expected"
+        echo "rot13 <encode/decode> <file/string>"
+    fi
+}
+
+function Pretty() {
+    for file in "$@"; do
+        echo "$file" | sed 's/\[[^]]*\]//g' | sed 's/[^A-Za-z0-9._-$@]/_/g' | sed 's/_\+/_/g' 2> /dev/null
+    done
+}
+
+function Pretty_rename() {
+    for file in "$@"; do
+        mv -- "${file}" "$(echo "$file" | sed 's/\[[^]]*\]//g' | sed 's/[^A-Za-z0-9._-$@]/_/g' | sed 's/_\+/_/g')" 2> /dev/null
+    done
+}
+
+function Extract() {
+    local archive="$1"
+
+    if [[ "${archive}" == *.tar  ]]; then
+        /usr/bin/tar --extract --verbose --file="${archive}"
+    elif [[ "${archive}" == *.tar.gz  ]]; then
+        /usr/bin/tar --extract --gzip --verbose --file="${archive}"
+    elif [[ "${archive}" == *.tar.xz  ]]; then
+        /usr/bin/tar --extract --xz --verbose --file="${archive}"
+    elif [[ "${archive}" == *.tar.bzip2  ]]; then
+        /usr/bin/tar --extract --bzip2 --verbose --file="${archive}"
+    else
+        echo "Sorry this is not tar archieve"
+    fi
+}
+
+RED="\033[38;2;255;0;0m"
+no_col="\033[0m"
+HOSTNAME="$(cat /etc/hostname)"
+
+function Compile_C_cc() {
+    local file="$1"
+    local RM="$2"
+    local file_no_ext="${file%%.*}"
+    /usr/bin/cc -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
+    [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
+    ./"$file_no_ext"
+    local run_exit_code="$?"
+    [[ $run_exit_code -ne 0 ]] && echo "Program exited with code : $run_exit_code"
+    [[ $RM == "rm" ]] && rm ./"$file_no_ext"
+}
+
+function Compile_C_cc_DEBUG() {
+    local file="$1"
+    local RM="$2"
+    local file_no_ext="${file%%.*}"
+    /usr/bin/cc -pedantic -Wall -Wextra -Werror -DDEBUG "$file" -o "${file%%.*}"
+    [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
+    ./"$file_no_ext"
+    local run_exit_code="$?"
+    [[ $run_exit_code -ne 0 ]] && echo "Program exited with code : $run_exit_code"
+    [[ $RM == "rm" ]] && rm ./"$file_no_ext"
+}
+
+function Compile_CPP_cc() {
+    local file="$1"
+    local RM="$2"
+    local file_no_ext="${file%%.*}"
+    /usr/bin/cc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra -fno-elide-constructors \
+        "$file" -o "${file%%.*}"
+    [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
+    ./"$file_no_ext"
+    local run_exit_code="$?"
+    [[ $run_exit_code -ne 0 ]] && echo "Program exited with code : $run_exit_code"
+    [[ $RM == "rm" ]] && rm ./"$file_no_ext"
+}
+
+function Compile_CPP_cc_DEBUG() {
+    local file="$1"
+    local RM="$2"
+    local file_no_ext="${file%%.*}"
+    /usr/bin/cc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra -Werror -DDEBUG  -fno-elide-constructors \
+        "$file" -o "${file%%.*}"
+    [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
+    ./"$file_no_ext"
+    local run_exit_code="$?"
+    [[ $run_exit_code -ne 0 ]] && echo "Program exited with code : $run_exit_code"
+    [[ $RM == "rm" ]] && rm ./"$file_no_ext"
+}
+
+function Compile_C_clang() {
+    local file="$1"
+    local RM="$2"
+    local file_no_ext="${file%%.*}"
+    /usr/bin/clang -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
+    [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
+    ./"$file_no_ext"
+    local run_exit_code="$?"
+    [[ $run_exit_code -ne 0 ]] && echo "Program exited with code : $run_exit_code"
+    [[ $RM == "rm" ]] && rm ./"$file_no_ext"
+}
+
+function Compile_CPP_clang() {
+    local file="$1"
+    local RM="$2"
+    local file_no_ext="${file%%.*}"
+    /usr/bin/clang++ -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
+    [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
+    ./"$file_no_ext"
+    local run_exit_code="$?"
+    [[ $run_exit_code -ne 0 ]] && echo "Program exited with code : $run_exit_code"
+    [[ $RM == "rm" ]] && rm ./"$file_no_ext"
+}
+
+function Yt-dlp_download() {
+    local url="$@"
+    /usr/bin/yt-dlp -f "bestvideo[height<=1080]+bestaudio/audio[height<=1080]" "$url"
+}
+
+function Steam() {
+    DRI_PRIME=1 __NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia steam
+}
+
+function Update-grub() {
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+function vim() {
+    local args=("$@")
+    if [[ "${#args[@]}" -eq 0 ]]; then
+        /usr/bin/vim
+    fi
+    for element in "${args[@]}" ; do
+        if  [[ "$element" != -* ]] ; then
+            case "${args##*.}" in
+                cpp|cxx|cc|c++)
+                    if [[ ! -s "$element" ]]; then
+                        echo '# include <iostream>'         >> "$element"
+                        echo ''                             >> "$element"
+                        echo '# define EXIT_SUCCESS 0'      >> "$element"
+                        echo '# define EXIT_FAILURE 1'      >> "$element"
+                        echo ''                             >> "$element"
+                        echo 'int main(void) {'             >> "$element"
+                        echo "    std::cout << std::endl;"  >> "$element"
+                        echo '    return EXIT_SUCCESS;'     >> "$element"
+                        echo '}'                            >> "$element"
+                    fi
+                    /usr/bin/nvim "$element"
+                    ;;
+                c)
+                    if [[ ! -s "${element}" ]]; then
+                        echo '# include <stdio.h>'          >> "$element"
+                        echo ''                             >> "$element"
+                        echo '# define EXIT_SUCCESS 0'      >> "$element"
+                        echo '# define EXIT_FAILURE 1'      >> "$element"
+                        echo ''                             >> "$element"
+                        echo 'int main(void) {'             >> "$element"
+                        echo '    printf("\\n");'           >> "$element"
+                        echo '    return EXIT_SUCCESS;'     >> "$element"
+                        echo '}'                            >> "$element"
+                    fi
+                    /usr/bin/nvim "$element"
+                    ;;
+                py)
+                    /usr/bin/nvim "$element"
+                    ;;
+                *)
+                    /usr/bin/vim "$element"
+                    ;;
+            esac
+        else
+            /usr/bin/vim "${args[@]}"
+        fi
+    done
+}
+
+function y() {
+    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+    /usr/bin/yazi "$@" --cwd-file="$tmp"
+    if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+        builtin cd -- "$cwd"
+    fi
+    rm -f -- "$tmp"
+}
+
+function man() {
+    local args=($@)
+    /usr/bin/man ${args[@]} | /usr/bin/bat --decorations=never --color=always --language=markdown 2> /dev/null
+}
+
+function yc() {
+    clear
+    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+    yazi "$@" --cwd-file="$tmp"
+    if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+        builtin cd -- "$cwd"
+    fi
+    rm -f -- "$tmp"
+}
+
+function GUI_BUILD_DEBUG() {
+    local FILE="$1"
+    local RM="$2"
+    local FILE_NOEXT="${FILE%%.*}"
+    [[ -f "$FILE" ]] && /usr/bin/cc -std=c++20 -Wall -Wextra -Werror -Wconversion -Wshadow -pedantic -O0 \
+        -fno-inline -lglfw -lGL -lglad -lm -lstdc++ "$FILE" -o "$FILE_NOEXT" && \
+    ./"$FILE_NOEXT";
+    [[ $RM == "rm" ]] && rm -rf ./"$FILE_NOEXT"
+}
+
+function GUI_BUILD_RELEASE() {
+    local FILE="$1"
+    local RM="$2"
+    local FILE_NOEXT="${FILE%%.*}"
+    [[ -f "$FILE" ]] && /usr/bin/cc -std=c++20 -Wall -Wextra -Wconversion -Wshadow -pedantic -O3 -flto \
+        -march=native -funroll-loops -fomit-frame-pointer -lglfw -lGL -lglad -lm -lstdc++ \
+        "$FILE" -o "$FILE_NOEXT" && \
+    ./"$FILE_NOEXT";
+    [[ $RM == "rm" ]] && rm -rf ./"$FILE_NOEXT"
+}
+
+function sway_vulkan() {
+    cd ~/
+    DESKTOP_SESSION=sway XDG_CURRENT_DESKTOP=sway WLR_RENDERER=vulkan /usr/bin/sway 1> /tmp/sway.log 2>&1
+}
+

@@ -1,0 +1,334 @@
+#!/bin/bash
+
+### Default Config ###
+SOURCE="/"
+DESTINATION="/tmp/MY_DEVICE"
+
+USERNAME="u0_a643"
+HOSTNAME="192.168.43.1"
+PORT="8022"
+
+
+### First argument
+FLAG="$1"
+
+### Some colors
+LITTLE_BLUE="\033[38;2;126;117;255m"
+LITTEL_RED="\033[38;2;200;10;10m"
+BLUE="\033[38;2;152;60;200m"
+GREEN="\033[38;2;138;230;81m"
+GRAY="\033[38;2;125;125;125m"
+ORANGE="\033[38;2;200;64;38m"
+PERL_GREEN="\033[1m\033[38;2;0;200;160m"
+NC="\033[0m"
+
+### Additional Tweaks
+CONFIG_FILE="/tmp/.sshfsMountScriptConf"
+PRIVATE_KEY="$HOME/.ssh"
+ENABLE_DEBUGGING="no"
+SSH_OPTIONS="-oreconnect -oCompression=yes"
+NETWORK_TIMEOUT=3
+MOUNT_TIMEOUT=0
+DESTINATION_DIRECTORY_PERMISSION=755
+
+function InstallTool() {
+    Tool="$1"
+
+    if command -v pacman 1> /dev/null 2>&1; then
+        echo "Installing ${Tool} via your package manager."
+        sudo pacman -Sy --noconfirm ${Tool}
+        exit 0
+    elif command -v apt 1> /dev/null 2>&1; then
+        echo "Installing ${Tool} via your package manager."
+        sudo apt update && sudo apt install -y ${Tool}
+        exit 0
+    elif command -v dnf 1> /dev/null 2>&1; then
+        echo "Installing ${Tool} via your package manager."
+        sudo dnf install -y ${Tool}
+        exit 0
+    elif command -v yum 1> /dev/null 2>&1; then
+        echo "Installing ${Tool} via yum."
+        sudo yum install -y ${Tool}
+        exit 0
+    fi
+}
+
+function SetTextEditor() {
+    if command -v nvim 1> /dev/null 2>&1; then
+        EDITOR="nvim"
+        return
+    elif command -v vim  1> /dev/null 2>&1; then
+        EDITOR="vim"
+        return
+    elif command -v nano 1> /dev/null 2>&1; then
+        EDITOR="nano"
+        return
+    else
+        echo "NO text editor found on your system"
+        InstallTool "vim"
+    fi
+}
+
+function Log_Message() {
+    showConfig="$1"
+
+    if [[ "${UseConfig}" =~ ^(No|no)$ ]]; then
+        echo -e "#=========================================================================="
+        echo -e "# Config '${LITTLE_BLUE}"${CONFIG_FILE}"${NC}' will be used?: "${UseConfig}""
+        echo -e "#=========================================================================="
+        echo ""
+    fi
+
+    if [[ "${UseConfig}" =~ ^(Yes|yes|true)$ ]]; then
+        echo -e "#=========================================================================="
+        echo -e "# Configuration file found at '${LITTLE_BLUE}${CONFIG_FILE}${NC}'"
+        echo -e "# Config '${LITTLE_BLUE}"${CONFIG_FILE}"${NC}' will be used?: "${UseConfig}""
+        echo -e "#=========================================================================="
+        echo -e "# Sourced '${LITTLE_BLUE}${CONFIG_FILE}${NC}'"
+        echo -e "# To prevent further sourcing of this config file, delete it or empty it."
+        echo -e "#=========================================================================="
+        echo ""
+    fi
+
+    if [[ ${showConfig} == "showConfig" ]]; then
+        echo -e "#================#"
+        echo -e "# Current Config #"
+        echo -e "#=============#=============================================================#"
+        echo -e "# ${GRAY}### Remote path to mount${NC}"
+        echo -e "# ${ORANGE}SOURCE${NC}=\"${SOURCE}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Local directory or mount the remote path to${NC}"
+        echo -e "# ${ORANGE}DESTINATION${NC}=\"${DESTINATION}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Private key for SSH authentication${NC}"
+        echo -e "# ${ORANGE}PRIVATE_KEY${NC}=\"${PRIVATE_KEY}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### SSH Username on the remote device${NC}"
+        echo -e "# ${ORANGE}USERNAME${NC}=\"${USERNAME}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Ip addresss or Hostname of the remote${NC}"
+        echo -e "# ${ORANGE}HOSTNAME${NC}=\"${HOSTNAME}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### SSH Port to use for connection${NC}"
+        echo -e "# ${ORANGE}PORT${NC}=\"${PORT}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Enable bash script debugging (yes or no)${NC}"
+        echo -e "# ${ORANGE}ENABLE_DEBUGGING${NC}=\"${ENABLE_DEBUGGING}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Timeout in seconds to wait for the remote host to respond (Network check)${NC}"
+        echo -e "# ${ORANGE}NETWORK_TIMEOUT${NC}=${BLUE}${NETWORK_TIMEOUT}${NC}"
+        echo -e "#"
+        echo -e "# ${GRAY}### Automatically unmount after this many seconds (0 to disable)${NC}"
+        echo -e "# ${ORANGE}MOUNT_TIMEOUT${NC}=${BLUE}${MOUNT_TIMEOUT}${NC}"
+        echo -e "#"
+        echo -e "# ${GRAY}### Set permission mode (e.g., 755) for the mount directory after mounting${NC}"
+        echo -e "# ${ORANGE}DESTINATION_DIRECTORY_PERMISSION${NC}=${BLUE}${DESTINATION_DIRECTORY_PERMISSION}${NC}"
+        echo -e "#"
+        echo -e "# ${GRAY}### Additional SSH options (e.g., -oreconnect -oCompression)${NC}"
+        echo -e "# ${ORANGE}SSH_OPTIONS${NC}=\"${SSH_OPTIONS}"\"
+        echo -e "#"
+        echo -e "#===========================================================================#"
+        echo -e ""
+    fi
+
+    if [[ "${isunMounted}" -eq 1 ]]; then
+        echo -e "# Successfully unmounted '${LITTLE_BLUE}${DESTINATION}${NC}'"
+        [[ ${DestRemoved} -eq 1 ]] && {
+        echo -e "# Removed '${LITTLE_BLUE}${DESTINATION}${NC}'"
+        } || {
+        echo -e "# [${LITTEL_RED}ERROR${NC}]: Failed to Remove '${LITTLE_BLUE}${DESTINATION}${NC}'"
+        }
+        echo ""
+    fi
+
+    if [[ "${isMounted}" -eq 1  ]]; then
+        echo -e "#=================================================================================================================================="
+        echo -e "# Mounted $(mount | grep "${DESTINATION}")" | grep --color=always -E "${USERNAME}|${HOSTNAME}"
+        echo -e "#=================================================================================================================================="
+        echo ""
+        if [[ ${USERNAME} == u0_a* ]]; then
+            ### Helping Messages
+            echo -e "#============================================================================================="
+            echo -e "# The termux default user home directory '${LITTLE_BLUE}${DESTINATION}/data/data/com.termux/files/home${NC}'"
+            echo -e "# Phone's internal stroage filesystem '${LITTLE_BLUE}${DESTINATION}/storage/emulated/0/${NC}'"
+            echo -e "#============================================================================================="
+            echo ""
+        fi
+    fi
+}
+
+function EditConfig() {
+    SetTextEditor # Set the terminal text editor
+    if [[ ! -s "${CONFIG_FILE}" ]]; then
+        echo -e "### Configuration File for SSHFS Mounting"                                        >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Remote path to mount"                                                         >> "${CONFIG_FILE}"
+        echo -e "SOURCE=\"${SOURCE}\""                                                             >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Local directory or mount the remote path to"                                  >> "${CONFIG_FILE}"
+        echo -e "DESTINATION=\"${DESTINATION}\""                                                   >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Private key for SSH authentication"                                           >> "${CONFIG_FILE}"
+        echo -e "PRIVATE_KEY=\"${PRIVATE_KEY}\""                                                   >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### SSH Username on the remote device"                                            >> "${CONFIG_FILE}"
+        echo -e "USERNAME=\"${USERNAME}\""                                                         >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Ip addresss or Hostname of the remote"                                        >> "${CONFIG_FILE}"
+        echo -e "HOSTNAME=\"${HOSTNAME}\""                                                         >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### SSH Port to use for connection"                                               >> "${CONFIG_FILE}"
+        echo -e "PORT=\"${PORT}\""                                                                 >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Enable bash script debugging (yes or no)"                                     >> "${CONFIG_FILE}"
+        echo -e "ENABLE_DEBUGGING=\"${ENABLE_DEBUGGING}\""                                         >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Additional SSH options (e.g., -oreconnect -oCompression)"                     >> "${CONFIG_FILE}"
+        echo -e "SSH_OPTIONS=\"${SSH_OPTIONS}"\"                                                   >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Timeout in seconds to wait for the remote host to respond (Network check)"    >> "${CONFIG_FILE}"
+        echo -e "NETWORK_TIMEOUT=${NETWORK_TIMEOUT}"                                               >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Automatically unmount after this many seconds (0 to disable)"                 >> "${CONFIG_FILE}"
+        echo -e "MOUNT_TIMEOUT=${MOUNT_TIMEOUT}"                                                   >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Set permission mode (e.g., 755) for the mount directory before mounting"      >> "${CONFIG_FILE}"
+        echo -e "DESTINATION_DIRECTORY_PERMISSION=${DESTINATION_DIRECTORY_PERMISSION}"             >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "### Should this config file be used? (Yes or no)"                                 >> "${CONFIG_FILE}"
+        echo -e "UseConfig=\"no\""                                                                 >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e ""                                                                                 >> "${CONFIG_FILE}"
+        echo -e "# vim:filetype=sh"                                                                >> "${CONFIG_FILE}"
+        ${EDITOR} "${CONFIG_FILE}"
+        exit 0
+    else
+        ${EDITOR} "${CONFIG_FILE}"
+        exit 0
+    fi
+}
+
+### Check if the file exists and non-empty, if the variable UseConfig is set 'yes', then source it
+if [[ -s "${CONFIG_FILE}" ]]; then
+    ### Just export the UseConfig= variable value from config
+    UseConfig=$(grep UseConfig "${CONFIG_FILE}" | cut -d'=' -f'2' | tr -d '"')
+    export UseConfig
+    if [[ "${UseConfig}" =~ ^(Yes|yes|true)$ ]]; then
+        source "${CONFIG_FILE}"
+    fi
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && {
+        echo -e "DEBUG_MESSAGE: UseConfig=$(grep UseConfig "${CONFIG_FILE}" | cut -d'=' -f'2' | tr -d '"')"
+        echo -e "DEBUG_MESSAGE: export UseConfig\n"
+    }
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: source "${CONFIG_FILE}"\n"
+fi
+
+### If sshfs binary is not installed
+if ! command -v sshfs  1> /dev/null 2>&1; then
+    echo -e "[${LITTEL_RED}ERROR${NC}]: 'sshfs' is not Installed, install it first using your package manager"
+    InstallTool "sshfs"
+fi
+
+### Edit the config file
+case "${FLAG}" in
+    e|-e|--edit|edit)
+        EditConfig
+        ;;
+    --debug)
+        ENABLE_DEBUGGING="yes"
+        ;;
+esac
+
+### Enable bash debugging
+[[ ${ENABLE_DEBUGGING} =~ ^"yes|Yes|YES|true"$ ]] && {
+    set -x
+}
+
+### Destination directory exists? unmount and remove it
+if [[ -d "${DESTINATION}" ]]; then
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1\n"
+    timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1 && {
+        isunMounted=1
+    } || {
+        echo -e "[${LITTEL_RED}ERROR${NC}]: Un-mount failed on '${LITTLE_BLUE}${DESTINATION}${NC}'"
+    }
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: rm -rf "${DESTINATION}" && DestRemoved=1\n"
+    rm -rf "${DESTINATION}" && DestRemoved=1
+    Log_Message "noConfig"
+    exit 0
+fi
+
+### Before mounting check if host or IP is alive and listening
+[[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+    echo -e "DEBUG_MESSAGE: ping -c 1 -W ${NETWORK_TIMEOUT} ${HOSTNAME} 1> /dev/null 2>&1\n"
+ping -c 1 -W ${NETWORK_TIMEOUT} ${HOSTNAME} 1> /dev/null 2>&1 || {
+    echo -e "'${LITTLE_BLUE}${HOSTNAME}${NC}' Not reachable, check the connection."
+    exit 1
+}
+
+### Fully unset, If private is not set
+if [[ ${PRIVATE_KEY} != "$HOME/.ssh" ]]; then
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: PRIVATE_KEY="-oIdentityFile=${PRIVATE_KEY}"\n"
+    PRIVATE_KEY="-oIdentityFile=${PRIVATE_KEY}"
+else
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: unset PRIVATE_KEY\n"
+    unset PRIVATE_KEY
+fi
+
+if [[ -n ${PORT} ]]; then
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: PORT="-oPort=${PORT}"\n"
+    PORT="-oPort=${PORT}"
+else
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: unset PORT\n"
+    unset PORT
+fi
+
+### Create destination directory
+if [[ ! -d "${DESTINATION}" ]]; then
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: mkdir "${DESTINATION}" 1> /dev/null 2>&1\n"
+    mkdir "${DESTINATION}" 1> /dev/null 2>&1 || {
+        echo -e "[${LITTEL_RED}ERROR${NC}]: Cannot create '${LITTLE_BLUE}${DESTINATION}${NC}'"
+    }
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: chmod ${DESTINATION_DIRECTORY_PERMISSION} "${DESTINATION}"\n"
+    chmod ${DESTINATION_DIRECTORY_PERMISSION} "${DESTINATION}" && \
+        permission_changed="yes" || permission_changed="no"
+fi
+
+### Mount the remote or local device filesystem as a fuse.sshfs device using openssh protocal
+[[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+    echo -e "DEBUG_MESSAGE: timeout --signal KILL 8 sshfs ${PORT} ${PRIVATE_KEY} ${SSH_OPTIONS} "${USERNAME}@${HOSTNAME}:${SOURCE}" "${DESTINATION}"\n"
+if timeout --signal KILL 8 sshfs ${PORT} ${PRIVATE_KEY} ${SSH_OPTIONS} "${USERNAME}@${HOSTNAME}:${SOURCE}" "${DESTINATION}"; then
+    isMounted=1
+        [[ ${permission_changed} != "yes" ]] && \
+            echo -e "[${LITTEL_RED}ERROR${NC}]: Cannot set permissions for '${LITTLE_BLUE}${DESTINATION}${NC}'"
+    if [[ ${MOUNT_TIMEOUT} -ne 0 ]]; then
+        (sleep ${MOUNT_TIMEOUT} && timeout --signal KILL 4 fusermount -u "${DESTINATION}") &
+    fi
+else
+    [[ -d "${DESTINATION}" ]] && {
+        [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+            echo -e "DEBUG_MESSAGE: timeout --signal KILL 4 mountpoint -q "${DESTINATION}"\n"
+        timeout --signal KILL 4 mountpoint -q "${DESTINATION}" && {
+            [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+                echo -e "DEBUG_MESSAGE: timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1\n"
+            timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1
+        }
+    }
+    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
+        echo -e "DEBUG_MESSAGE: rm -rf "${DESTINATION}"\n"
+    rm -rf "${DESTINATION}"
+    exit 1
+fi
+
+### Log the messages
+Log_Message "showConfig"
+

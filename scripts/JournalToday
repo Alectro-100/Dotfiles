@@ -1,0 +1,79 @@
+#!/bin/bash
+
+### Set Variables and colors
+Editor="$1"
+
+JournalDir="${HOME}/journalD"
+JournalFile="$(date +%d-%b-%Y_).md"
+
+TransformKeyPath="${HOME}/._tr"
+TransformKey="$(cat ${TransformKeyPath})"
+TemplatePath="$HOME/.scripts/JR"
+green="\033[3;32m"
+no_col="\033[0m"
+
+function cleanup() {
+    if [[ -f "$TempFile" ]]; then
+        tr 'A-Za-z' "${TransformKey}" < "${TempFile}" > "${JournalDir}/${JournalFile}"
+        rm -f "$TempFile"
+    fi
+}
+
+if [[ ! -d "${JournalDir}" ]]; then
+    echo "Path '"${JournalDir}"' doesnt' exist"
+    if mkdir -p "${JournalDir}"; then
+        echo "Created '${JournalDir}'"
+        sleep 1
+    else
+        echo "Failed to create '${JournalDir}'"
+        exit 1
+    fi
+fi
+
+[[ -s "${TransformKeyPath}" ]] || {
+    echo "Missing or empty transform key at '${TransformKeyPath}'"
+    exit 1
+}
+
+### Only run if first arguemnt (The Editor) is given
+if [[ -n "$Editor" ]]; then
+    ### If given editor does not exists fallback to vim
+    command -v "$Editor" 1> /dev/null 2>&1 || Editor="vim"
+
+    ### Create a temporary file
+    TempFile="$(mktemp ${JournalDir}/.${JournalFile}.XXXXXXXXXX.tmp)"
+    trap cleanup EXIT INT TERM
+
+    ### If file doesn't exist and empty, create the file and provide a default template
+    if [[ ! -s "${JournalDir}/${JournalFile}" ]]; then
+
+        ### Fill the Journal with a template
+        grep -A 100 "### Today's tasklist and journal" "${TemplatePath}" 1> "${JournalDir}/${JournalFile}"
+
+        tr 'A-Za-z' "${TransformKey}" < "${JournalDir}/${JournalFile}" > "${TempFile}"
+        mv "${TempFile}" "${JournalDir}/${JournalFile}"
+    fi
+
+    if [[ "$Editor" == "vim" ]]; then
+        tr "${TransformKey}" 'A-Za-z' < "${JournalDir}/${JournalFile}" > "${TempFile}"
+        sleep 0.01
+        vim -c 'colorscheme unokai' "${TempFile}"
+        tr 'A-Za-z' "${TransformKey}" < "${TempFile}" > "${JournalDir}/${JournalFile}"
+        rm -f "${TempFile}"
+    else
+        tr "${TransformKey}" 'A-Za-z' < "${JournalDir}/${JournalFile}" > "${TempFile}"
+        sleep 0.01
+        "${Editor}" "${TempFile}"
+        tr 'A-Za-z' "${TransformKey}" < "${TempFile}" > "${JournalDir}/${JournalFile}"
+        rm -f "${TempFile}"
+    fi
+    exit 0
+fi
+
+if [[ ! -f "${JournalDir}/${JournalFile}" ]]; then
+    touch "${JournalDir}/${JournalFile}"
+    echo -e "Created $green"${JournalDir}/${JournalFile}"$no_col"
+else
+    echo -e "File already exists: $green"${JournalDir}/${JournalFile}"$no_col"
+fi
+

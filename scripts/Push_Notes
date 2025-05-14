@@ -1,0 +1,27 @@
+#!/bin/bash
+
+red="\033[38;2;200;100;5m"
+blue="\033[38;2;10;100;255m"
+green="\033[38;2;10;240;0m"
+highlight="\033[1m"
+no_col="\033[0m"
+failure=0
+
+GIT_DIR="$HOME/Notes"
+[[ -d ${GIT_DIR} ]] || \
+    { echo -e "${red}Directory Doesn't exist ${no_col}'${highlight}${blue}${GIT_DIR}${no_col}'" ; exit 1; }
+
+cd ${GIT_DIR} || \
+    { echo -e "${red}Couldn't cd ${no_col}${highlight}'${blue}${GIT_DIR}${no_col}'" ; exit 1; }
+git reset --soft HEAD~1 || failure=$(( failure + 1 ))
+git add . || failure=$(( failure + 1 ))
+git reflog expire --expire=now --all
+git commit -m "My Notes" || failure=$(( failure + 1 ))
+git push origin main --force || failure=$(( failure + 1 ))
+
+if [[ $failure -ne 0 ]]; then
+    echo -e "${red}Exited, with errors during the script execution. Failures count: '$failure'${no_col}."
+else
+    echo -e "${green}Successfully pushed your changes to Github.${no_col}"
+fi
+

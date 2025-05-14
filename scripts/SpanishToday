@@ -1,0 +1,23 @@
+#!/bin/bash
+
+Editor="$1"
+SpanishFileName="$HOME/Notes/Language/Spanish/Lesson_$(( $(date +%s)/86400 - 20152))_$(date +%d-%b-%Y_).md"
+green="\033[3;32m"
+no_col="\033[0m"
+
+if [[ -n "$Editor" ]]; then
+    command -v "$Editor" > /dev/null 2>&1
+    [[ $? -ne 0 ]] && Editor="$Editor:-"vim"}"
+    if [[ ! -s "${SpanishFileName}" ]]; then # -s if the file exist and not empty
+        echo "File does not exist"
+    fi
+    "$Editor" "$SpanishFileName"
+    exit 0
+fi
+
+if [[ ! -f "$SpanishFileName" ]]; then
+    touch "$SpanishFileName"
+    echo -e "Created $green"$SpanishFileName"$no_col"
+else
+    echo -e "File already exists: $green"$SpanishFileName"$no_col"
+fi

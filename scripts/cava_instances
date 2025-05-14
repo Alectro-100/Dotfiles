@@ -1,0 +1,24 @@
+#!/bin/bash
+
+FLAG="$1"
+TEMP_FILE="/tmp/.cava_instances.tmp"
+speed="0.01"
+
+case ${FLAG} in
+    KILL_CAVA)
+        [[ -s "${TEMP_FILE}" ]] && {
+            kill -INT $(cat "${TEMP_FILE}")
+            rm "${TEMP_FILE}"
+        }
+        ;;
+    SPAWN)
+        echo > "${TEMP_FILE}"
+        for ((i = 0; i < 8; i++)); do
+            footclient --server-socket=/tmp/foot.sock -e "cava" &> /dev/null &
+            sleep "$speed"
+            echo "$!" >> "${TEMP_FILE}"
+            disown
+        done
+        ;;
+esac
+

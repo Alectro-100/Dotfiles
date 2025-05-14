@@ -1,0 +1,6 @@
+#!/bin/bash
+
+IW="$1"
+
+[[ -n $IW ]] && sudo iw dev wlo1 scan | grep SSID: | awk -F' ' '{print $2}' || /usr/bin/nmcli device wifi list
+
