@@ -1,29 +1,58 @@
 #!/bin/bash
 
-green="\033[38;2;0;255;0m"
-blue="\033[38;2;100;40;255m"
-red="\033[38;2;255;0;0m"
-no_col="\033[0m"
+set -euo pipefail
+
+GREEN="\033[38;2;0;255;0m"
+BLUE="\033[38;2;100;40;255m"
+MSG_COL="\033[38;2;255;240;200m"
+RED="\033[38;2;255;0;0m"
+NC="\033[0m"
 GIT_DIR="${HOME}/DEV_DIR/GIT/ConfigFiles/"
+COMMIT_MESSAGE=""
+ARGUMENT_ARRAY=("$@")
+DRY_RUN=0
 failure=0
 
+function INFO() {
+    echo -e "[${GREEN}INFO${NC}]: $1"
+}
+
+function ERROR() {
+    echo -e "[${RED}ERROR${NC}]: $1"
+}
+
+function READ_COMMIT_MSG() {
+    read -p "Your commit message: " $1
+}
+
 if [[ ! -d ${GIT_DIR} ]]; then
-    echo -e "'${blue}${GIT_DIR}${no_col}' doesn't exist you might want to update this"
+    ERROR "'${BLUE}${GIT_DIR}${NC}' doesn't exist you might want to update this"
     exit 1
 fi
 
-echo -e "${green}Your git repository ${blue}${GIT_DIR}${no_col}${no_col}"
+INFO "${GREEN}Your git repository ${BLUE}${GIT_DIR}${NC}${NC}"
+
+for (( i=0 ; i < ${#ARGUMENT_ARRAY[@]} ; i++ )); do
+    arg="${ARGUMENT_ARRAY[$i]}"
+    case "$arg" in
+        --dry-run)
+            DRY_RUN=1
+            ;;
+    esac
+done
+
 cd "${GIT_DIR}"
 
-git reset --soft HEAD~1 || failure=$(( failure + 1 ))
-git add . || failure=$(( failure + 1 ))
-git reflog expire --expire=now --all
-git commit -m "CONFIG FILES" || failure=$(( failure + 1 ))
-git push origin main --force || failure=$(( failure + 1 ))
+# git reset --soft HEAD~1 || failure=$(( failure + 1 ))
 
-if [[ $failure -eq 0 ]]; then
-    echo -e "${green}Successfully pushed your changes to Github.${no_col}"
-else
-    echo -e "${red}Exited, with errors during the script execution. Failures count: '$failure'${no_col}."
-fi
+git add . && INFO "Added changes to staging area."
+
+# git reflog expire --expire=now --all
+READ_COMMIT_MSG "COMMIT_MESSAGE"
+
+git commit -m "$COMMIT_MESSAGE" && INFO "Successfully commited the changes"
+
+git push origin main && {
+    INFO "${MSG_COL}Successfully pushed your changes to Github.${NC}"
+}
 

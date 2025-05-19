@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+# Launches the given docker and attaches interactively (zsh > bash)
+
+# Collect all arguments into an array
+ARGUMENT_ARR=("$@")
+RED="\033[38;2;244;0;0m"
+GREEN="\033[38;2;0;244;0m"
+COL_CON="\033[38;2;98;192;244m"
+NC="\033[0m"
+
+function INFO() {
+    echo -e "[${GREEN}*${NC}]: $1"
+}
+
+function ERROR() {
+    echo -e "[${RED}!${NC}]: $1"
+    exit 1
+}
+
+# Exit if no arguments are passed
+[[ ${#ARGUMENT_ARR[@]} -eq 0 ]] && {
+    echo "Usage: Docker <container-name|stop>"
+    exit 1
+}
+
+# Extract first argument
+DOCKER_NAME="${ARGUMENT_ARR[0]}"
+
+# If first arg is any case of "stop"
+if [[ "${DOCKER_NAME,,}" == "stop" ]]; then
+    if systemctl --quiet is-active docker.service &> /dev/null; then
+        INFO "Stopping Docker services..."
+        sudo systemctl stop docker.service docker.socket || ERROR "Could not stop services"
+        INFO "Docker services stopped"
+        exit 0
+    else
+        INFO "Docker services are already stopped"
+    fi
+    exit 0
+fi
+
+# Check if Docker service is inactive and start it if needed
+if [[ "$(systemctl is-active docker 2>/dev/null)" == "inactive" ]]; then
+    INFO "Starting Docker service..."
+    sudo systemctl start docker || {
+        ERROR "Failed to start Docker."
+    }
+fi
+
+# Cehck if container exists or not
+if ! docker container inspect "${DOCKER_NAME}" &> /dev/null; then
+    ERROR "Container ${COL_CON}${DOCKER_NAME}${NC} not found"
+fi
+
+# Start the container
+INFO "Starting container: ${DOCKER_NAME}"
+docker start "${DOCKER_NAME}" || {
+    ERROR "Failed to start container: ${DOCKER_NAME}"
+}
+
+# Attach into it using zsh if available, fallback to bash
+INFO "Attaching to container: ${DOCKER_NAME}"
+docker exec -it "${DOCKER_NAME}" bash -c '
+    cd ~
+    if command -v zsh &> /dev/null; then
+        exec zsh
+    else
+        bash
+    fi
+'
+

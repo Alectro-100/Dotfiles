@@ -1,61 +1,211 @@
 #!/bin/bash
 
-FLAG1="$1"
-
-GIT_DIR="$HOME/DEV_DIR/GIT/ConfigFiles"
-SCRIPTS="$HOME/.bin"
+set -euo pipefail
+IFS=$'\n\t'
 
 # colors
-highlight="\033[1m"
-green="\033[38;2;100;255;40m"
-blue="\033[38;2;100;100;240m"
-red="\033[38;2;255;10;10m"
-no_col="\033[0m"
+GREEN="\033[38;2;100;255;40m"
+YELLOW="\033[38;2;255;190;65m"
+BLUE="\033[38;2;100;100;240m"
+RED="\033[38;2;255;10;10m"
+NC="\033[0m"
+HL="\033[1m"
 
-function Copy() {
-    cp -r $HOME/.config/hypr/* "$GIT_DIR/hyprland_config/" && \
-        echo -e "Copied '${green}$HOME/.config/hypr/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/hyprland_config/'${no_col}"
+# An array to hold all the given flags
+FLAGS_ARRAY=("$@")
 
-    cp $HOME/.vimrc.bak "$GIT_DIR/vim_config/vimrc" && \
-        echo -e "Copied '${green}$HOME/.vimrc.bak${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/vim_config/vimrc${no_col}'"
+# Your git local dotfile repository
+GIT_DIR="${HOME}/DEV_DIR/GIT/ConfigFiles"
 
-    cp $HOME/.config/nvim/init.vim.bak "$GIT_DIR/neovim_config/init.vim" && \
-        echo -e "Copied '${green}$HOME/.config/nvim/init.vim.bak${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/neovim_config/init.vim${no_col}'"
+# 1 for git status 0 for no git status
+GIT_STATUS=0
 
-    cp $HOME/.SHELL_RC "$GIT_DIR/shell_config/SHELL_RC" && \
-        echo -e "Copied '${green}$HOME/.SHELL_RC${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/shell_config/SHELL_RC${no_col}'"
+# LOG=2 INFO=1 ERROR=0
+LOG_LEVEL=0
 
-    cp $HOME/.bashrc "$GIT_DIR/shell_config/bashrc" && \
-        echo -e "Copied '${green}$HOME/.bashrc${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/shell_config/bashrc${no_col}'"
+# command in use to copy stuff
+SYNC_="rsync"
 
-    cp $HOME/.config/foot/foot.ini "$GIT_DIR/sway_config/foot/" && \
-        echo -e "Copied '${green}$HOME/.config/foot/foot.ini${no_col}' ${red}--->${no_col} '${blue}$GIT_DIR/sway_config/foot/${no_col}'"
-
-    cp -r $HOME/.config/sway/* "$GIT_DIR/sway_config/" && \
-        echo -e "Copied '${green}$HOME/.config/sway/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/sway_config/${no_col}'"
-
-    cp -r $HOME/.config/i3/* "$GIT_DIR/i3_config/" && \
-        echo -e "Copied '${green}$HOME/.config/i3/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/i3_config/${no_col}'"
-
-    cp -r $HOME/.config/waybar/* "$GIT_DIR/waybar_config/" && \
-        echo -e "Copied '${green}$HOME/.config/waybar/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/waybar_config/${no_col}'"
-
-    cp -r $HOME/.config/wofi/* "$GIT_DIR/wofi_config/" && \
-        echo -e "Copied '${green}$HOME/.config/wofi/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/wofi_config/${no_col}'"
-
-    cp -r $SCRIPTS/* $GIT_DIR/scripts/ && \
-        echo -e "Copied '${green}$SCRIPTS/${no_col}*' ${red}--->${no_col} '${blue}$GIT_DIR/scripts${no_col}'"
+function ERROR() {
+    local msg="${2:-""}"
+    [[ $LOG_LEVEL -ge 0 ]] && {
+        echo -e "[${HL}${RED}ERROR${NC}]: ${msg}$1"
+    } || {
+        return 0
+    }
 }
 
-if [[ ! -d "$GIT_DIR" ]]; then
-    echo "Given Directory doesn't exits '$GIT_DIR'"
-    exit 1
+function INFO() {
+    local msg="${2:-""}"
+    [[ $LOG_LEVEL -ge 1 ]] && {
+        echo -e "[${HL}${GREEN}INFO${NC}]: ${msg}$1"
+    } || {
+        return 0
+    }
+}
+
+function DEBUG_LOG() {
+    local msg="${2:-""}"
+    [[ $LOG_LEVEL -ge 2 ]] && {
+        echo -e "[${HL}${YELLOW}DEBUG_LOG${NC}]: ${msg}$1"
+    } || {
+        return 0
+    }
+}
+
+function CopyFiles() {
+    local SOURCE="$1"
+    local DEST="$2"
+
+    if [[ ! -f "${SOURCE}" ]]; then
+        ERROR "Source '${BLUE}${SOURCE}${NC}' file does not exist"
+        return 1
+    fi
+
+    mkdir --parents -- $(dirname "${DEST}")
+
+    if [[ $LOG_LEVEL -ge 2 ]]; then
+        if [[ "$SYNC_" == "rsync" ]]; then
+            $SYNC_ --progress --archive "${SOURCE}" "${DEST}" || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        else
+            $SYNC_ --verbose "${SOURCE}" "${DEST}" || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        fi
+    else
+        if [[ "$SYNC_" == "rsync" ]]; then
+            $SYNC_ --archive "${SOURCE}" "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        else
+            $SYNC_ "${SOURCE}" "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        fi
+    fi
+}
+
+function CopyDirs() {
+    local SOURCE="$1"
+    local DEST="$2"
+
+    if [[ ! -d "${SOURCE}" ]]; then
+        ERROR "Source '${BLUE}${SOURCE}${NC}' directory does not exist"
+        return 1
+    fi
+
+    mkdir --parents -- "${DEST}"
+
+    if [[ $LOG_LEVEL -ge 2 ]]; then
+        if [[ "$SYNC_" == "rsync" ]]; then
+            $SYNC_ --progress --archive "${SOURCE}/" "${DEST}/" || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        else
+            $SYNC_ --verbose --recursive "${SOURCE}"/* "${DEST}" || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        fi
+    else
+        if [[ "$SYNC_" == "rsync" ]]; then
+            $SYNC_ --archive "${SOURCE}/" "${DEST}/" 1> /dev/null 2>&1 || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        else
+            $SYNC_ --recursive "${SOURCE}"/* "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        fi
+    fi
+}
+
+for (( i=0 ; i < ${#FLAGS_ARRAY[@]} ; i++ )); do
+    arg="${FLAGS_ARRAY[$i]}"
+    if [[ "$arg" == -* ]]; then
+        case "$arg" in
+            -v|--verbose|--progress)
+                LOG_LEVEL=1
+                DEBUG_LOG "Verbose is set"
+                ;;
+            -l|--log|--loglevel)
+                unset LOG_LEVEL
+                readonly LOG_LEVEL="${FLAGS_ARRAY[$(( i + 1 ))]:-1}"
+                if [[ -z "$LOG_LEVEL" ]]; then
+                    LOG_LEVEL=1
+                    ERROR "LOG_LEVEL: $LOG_LEVEL" "No LOG_LEVEL given, Defaulting to: "
+                elif [[ "$LOG_LEVEL" -gt 2 ]]; then
+                    DEBUG_LOG "LOG_LEVEL has no effect over integer 2"
+                else
+                    if [[ $LOG_LEVEL -eq 2 ]]; then
+                        DEBUG_LOG "Debugging enabled"
+                    fi
+                    DEBUG_LOG "LOG_LEVEL: $LOG_LEVEL"
+                fi
+                i=$(( i + 1 ))
+                ;;
+            -d|-db|--db|--deb|--debug)
+                LOG_LEVEL=2
+                DEBUG_LOG "Debugging enabled"
+                ;;
+            -g|-gs|--gs|--status|--git-status)
+                GIT_STATUS=1
+                DEBUG_LOG "GIT_STATUS is set"
+                ;;
+            *)
+                ERROR "Invalid flag: $arg"
+                ;;
+        esac
+    fi
+done
+
+if command -v rsync 1> /dev/null 2>&1; then
+    SYNC_="rsync"
+    [[ $? -ne 0 ]] && ERROR "'rsync' not found. Falling back to 'cp'."
+elif command -v cp 1> /dev/null 2>&1; then
+    SYNC_="cp"
 fi
 
-Copy
+# Why local dotfile directory doesn't exist
+if [[ ! -d "${GIT_DIR}" ]]; then
+    mkdir --parents "${GIT_DIR}" || {
+        ERROR "Cannot create '${BLUE}${GIT_DIR}${NC}'"
+        exit 1
+    }
+fi
 
-if [[ $FLAG1 =~ ^(gs|diff|status)$ ]]; then
-    cd $GIT_DIR
+DEBUG_LOG "GIT_DIR=$GIT_DIR"
+DEBUG_LOG "GIT_STATUS=$GIT_STATUS"
+DEBUG_LOG "LOG_LEVEL=$LOG_LEVEL"
+DEBUG_LOG "SYNC_=$SYNC_"
+
+echo && INFO "Dotfile directory: ${BLUE}${GIT_DIR}${NC}\n"
+
+### Files to file Copy
+declare -A FILES_TO_COPY=(
+    ["${HOME}/.vimrc.bak"]="${GIT_DIR}/vim_config/vimrc"
+    ["${HOME}/.config/nvim/init.vim.bak"]="${GIT_DIR}/neovim_config/init.vim"
+    ["${HOME}/.SHELL_RC"]="${GIT_DIR}/shell_config/SHELL_RC"
+    ["${HOME}/.bashrc"]="${GIT_DIR}/shell_config/bashrc"
+    ["${HOME}/.config/foot/foot.ini"]="${GIT_DIR}/sway_config/foot/foot.ini"
+)
+
+# Start copying all the files to the destination
+for src in "${!FILES_TO_COPY[@]}"; do
+    CopyFiles "${src}" "${FILES_TO_COPY[$src]}"
+done
+
+### Directory to Directory Copy
+declare -A DIRS_TO_COPY=(
+    ["${HOME}/.config/hypr"]="${GIT_DIR}/hyprland_config"
+    ["${HOME}/.config/sway"]="${GIT_DIR}/sway_config"
+    ["${HOME}/.config/i3"]="${GIT_DIR}/i3_config"
+    ["${HOME}/.config/waybar"]="${GIT_DIR}/waybar_config"
+    ["${HOME}/.config/wofi"]="${GIT_DIR}/wofi_config"
+    ["${HOME}/.config/qutebrowser"]="${GIT_DIR}/qutebrowser"
+    ["${HOME}/.bin"]="${GIT_DIR}/scripts"
+)
+
+# Start copying directory content to the the destination
+for src in "${!DIRS_TO_COPY[@]}"; do
+    CopyDirs "${src}" "${DIRS_TO_COPY[$src]}"
+done
+
+if [[ ${GIT_STATUS} -eq 1 ]]; then
+    cd ${GIT_DIR}
     git status
 fi
 

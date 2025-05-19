@@ -1,7 +1,8 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 MUSIC_DIRECTORY="$HOME/Music"
-SELECTED=$(ls "${MUSIC_DIRECTORY}" | grep -i -E ".mp3|.wav|.flac" | fzf)
+ARGUMENT1="$1"
+SELECTED=$(ls "${MUSIC_DIRECTORY}" | grep -i -E ".mp3|.wav|.flac|.m4a|.webm" | fzf)
 GREEN="\033[38;2;80;250;100m"
 BROWN="\033[38;2;240;120;120m"
 GREY="\033[38;2;160;160;140m"
@@ -12,7 +13,16 @@ if [[ -n ${SELECTED} ]]; then
     echo -e "${GREY}MUSIC${NC}: ${GREEN}${SELECTED}${NC}"
     echo -e "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} --loop --no-video --volume=65 \"${BLUE}${MUSIC_DIRECTORY}/${SELECTED}${NC}\""
     echo -e ""
-    mpv --loop --no-video --volume=64 "${MUSIC_DIRECTORY}/${SELECTED}"
+
+    if [[ -n "${ARGUMENT1}" ]]; then
+        case ${ARGUMENT1} in
+            -v|-video|--video)
+                mpv --loop --volume=64 "${MUSIC_DIRECTORY}/${SELECTED}"
+                ;;
+        esac
+    else
+        mpv --loop --no-video --volume=64 "${MUSIC_DIRECTORY}/${SELECTED}"
+    fi
 else
     echo "No song selected"
 fi

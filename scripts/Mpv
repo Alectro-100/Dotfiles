@@ -8,7 +8,7 @@ MPV_IPC_SEVER="/tmp/mpv_socket"
 for arg in ${ARGS}; do
     if [[ -s ${PID_FILE} ]] || [[ ${arg} == "KILL" ]] ; then
         PID=$(cat "${PID_FILE}")
-        kill -INT "${PID}" 1> /dev/null 2>&1
+        kill -INT "${PID}" &> /dev/null
     fi
     mpv --loop --volume=65 --input-ipc-server="${MPV_IPC_SEVER}" ${arg} 1> /dev/null 2>&1 &
     [[ $? -eq 0 ]] && {

@@ -201,4 +201,5 @@ install qt6-tools
 install gdu
 # install lagrange-bin
 install obsidian
+install nvidia-container-toolkit
 

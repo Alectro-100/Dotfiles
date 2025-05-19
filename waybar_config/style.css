@@ -164,11 +164,10 @@ button:hover {
 }
 
 @keyframes cava_Blink {
-    /* 0%   { color: #C86666 ; opacity: 1; } */
     0%   { color: #AA00FF ; opacity: 1; }
-    40%   { color: #FFB4B4 ; opacity: 0.6; }
-    50%   { color: #AFA9FF ; opacity: 0.6; }
-    60%   { color: #FFE4A4 ; opacity: 0.6; }
+    /* 40%   { color: #FFB4B4 ; opacity: 0.6; } */
+    /* 50%   { color: #AFA9FF ; opacity: 0.6; } */
+    /* 60%   { color: #FFE4A4 ; opacity: 0.6; } */
     100% { color: #AA00FF ; opacity: 1; }
 }
 

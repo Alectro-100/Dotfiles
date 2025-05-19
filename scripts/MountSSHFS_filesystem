@@ -13,8 +13,9 @@ PORT="8022"
 FLAG="$1"
 
 ### Some colors
-LITTLE_BLUE="\033[38;2;126;117;255m"
 LITTEL_RED="\033[38;2;200;10;10m"
+LITTLE_GREEN="\033[38;2;120;200;85m"
+LITTLE_BLUE="\033[38;2;126;117;255m"
 BLUE="\033[38;2;152;60;200m"
 GREEN="\033[38;2;138;230;81m"
 GRAY="\033[38;2;125;125;125m"
@@ -22,14 +23,38 @@ ORANGE="\033[38;2;200;64;38m"
 PERL_GREEN="\033[1m\033[38;2;0;200;160m"
 NC="\033[0m"
 
-### Additional Tweaks
+### SSH specific variables
 CONFIG_FILE="/tmp/.sshfsMountScriptConf"
 PRIVATE_KEY="$HOME/.ssh"
-ENABLE_DEBUGGING="no"
 SSH_OPTIONS="-oreconnect -oCompression=yes"
+
+### Debug and networking variables
+DEBUG=1
+# Ping command will wait till NETWORK_TIMEOUT
 NETWORK_TIMEOUT=3
+# 0 Set's no limit on Mount location 0 > will set the mount location timeout
 MOUNT_TIMEOUT=0
+# Only changes the permissions for local directory created on local machine
 DESTINATION_DIRECTORY_PERMISSION=755
+
+function DEBUG_LOG() {
+    if [[ $DEBUG -eq 1 ]]; then
+        echo -e "[${ORANGE}DEBUG${NC}]: $1"
+    fi
+}
+
+function INFO() {
+    echo -e "[${LITTLE_GREEN}INFO${NC}]: $1"
+}
+
+function ERROR() {
+    echo -e "[${LITTEL_RED}ERROR${NC}]: $1"
+    if [[ $2 -ne 0 ]]; then
+        exit 1
+    else
+        return 0
+    fi
+}
 
 function InstallTool() {
     Tool="$1"
@@ -56,13 +81,13 @@ function InstallTool() {
 function SetTextEditor() {
     if command -v nvim 1> /dev/null 2>&1; then
         EDITOR="nvim"
-        return
+        return 0
     elif command -v vim  1> /dev/null 2>&1; then
         EDITOR="vim"
-        return
+        return 0
     elif command -v nano 1> /dev/null 2>&1; then
         EDITOR="nano"
-        return
+        return 0
     else
         echo "NO text editor found on your system"
         InstallTool "vim"
@@ -71,6 +96,8 @@ function SetTextEditor() {
 
 function Log_Message() {
     showConfig="$1"
+
+    local type="$1"
 
     if [[ "${UseConfig}" =~ ^(No|no)$ ]]; then
         echo -e "#=========================================================================="
@@ -113,7 +140,7 @@ function Log_Message() {
         echo -e "# ${ORANGE}PORT${NC}=\"${PORT}\""
         echo -e "#"
         echo -e "# ${GRAY}### Enable bash script debugging (yes or no)${NC}"
-        echo -e "# ${ORANGE}ENABLE_DEBUGGING${NC}=\"${ENABLE_DEBUGGING}\""
+        echo -e "# ${ORANGE}DEBUG${NC}=\"${DEBUG}\""
         echo -e "#"
         echo -e "# ${GRAY}### Timeout in seconds to wait for the remote host to respond (Network check)${NC}"
         echo -e "# ${ORANGE}NETWORK_TIMEOUT${NC}=${BLUE}${NETWORK_TIMEOUT}${NC}"
@@ -132,11 +159,11 @@ function Log_Message() {
     fi
 
     if [[ "${isunMounted}" -eq 1 ]]; then
-        echo -e "# Successfully unmounted '${LITTLE_BLUE}${DESTINATION}${NC}'"
+        INFO "Successfully unmounted '${LITTLE_BLUE}${DESTINATION}${NC}'"
         [[ ${DestRemoved} -eq 1 ]] && {
-        echo -e "# Removed '${LITTLE_BLUE}${DESTINATION}${NC}'"
+            INFO "Removed '${LITTLE_BLUE}${DESTINATION}${NC}'"
         } || {
-        echo -e "# [${LITTEL_RED}ERROR${NC}]: Failed to Remove '${LITTLE_BLUE}${DESTINATION}${NC}'"
+            ERROR "Failed to Remove '${LITTLE_BLUE}${DESTINATION}${NC}'" 1
         }
         echo ""
     fi
@@ -181,7 +208,7 @@ function EditConfig() {
         echo -e "PORT=\"${PORT}\""                                                                 >> "${CONFIG_FILE}"
         echo -e ""                                                                                 >> "${CONFIG_FILE}"
         echo -e "### Enable bash script debugging (yes or no)"                                     >> "${CONFIG_FILE}"
-        echo -e "ENABLE_DEBUGGING=\"${ENABLE_DEBUGGING}\""                                         >> "${CONFIG_FILE}"
+        echo -e "DEBUG=\"${DEBUG}\""                                         >> "${CONFIG_FILE}"
         echo -e ""                                                                                 >> "${CONFIG_FILE}"
         echo -e "### Additional SSH options (e.g., -oreconnect -oCompression)"                     >> "${CONFIG_FILE}"
         echo -e "SSH_OPTIONS=\"${SSH_OPTIONS}"\"                                                   >> "${CONFIG_FILE}"
@@ -216,17 +243,17 @@ if [[ -s "${CONFIG_FILE}" ]]; then
     if [[ "${UseConfig}" =~ ^(Yes|yes|true)$ ]]; then
         source "${CONFIG_FILE}"
     fi
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && {
-        echo -e "DEBUG_MESSAGE: UseConfig=$(grep UseConfig "${CONFIG_FILE}" | cut -d'=' -f'2' | tr -d '"')"
-        echo -e "DEBUG_MESSAGE: export UseConfig\n"
+    [[ "${DEBUG}" -eq 1 ]] && {
+        DEBUG_LOG "UseConfig=$(grep UseConfig "${CONFIG_FILE}" | cut -d'=' -f'2' | tr -d '"')"
+        DEBUG_LOG "export UseConfig\n"
     }
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: source "${CONFIG_FILE}"\n"
+
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "source "${CONFIG_FILE}"\n"
 fi
 
 ### If sshfs binary is not installed
-if ! command -v sshfs  1> /dev/null 2>&1; then
-    echo -e "[${LITTEL_RED}ERROR${NC}]: 'sshfs' is not Installed, install it first using your package manager"
+if ! command -v sshfs  &> /dev/null; then
+    ERROR "'${GREEN}sshfs${NC}' is not Installed, install it first using your package manager" 1
     InstallTool "sshfs"
 fi
 
@@ -236,99 +263,87 @@ case "${FLAG}" in
         EditConfig
         ;;
     --debug)
-        ENABLE_DEBUGGING="yes"
+        DEBUG=1
         ;;
 esac
 
 ### Enable bash debugging
-[[ ${ENABLE_DEBUGGING} =~ ^"yes|Yes|YES|true"$ ]] && {
+[[ ${DEBUG} -eq 1 ]] && {
     set -x
 }
 
 ### Destination directory exists? unmount and remove it
 if [[ -d "${DESTINATION}" ]]; then
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1\n"
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1\n"
     timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1 && {
         isunMounted=1
     } || {
-        echo -e "[${LITTEL_RED}ERROR${NC}]: Un-mount failed on '${LITTLE_BLUE}${DESTINATION}${NC}'"
+        ERROR "Un-mount failed on '${LITTLE_BLUE}${DESTINATION}${NC}'"
     }
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: rm -rf "${DESTINATION}" && DestRemoved=1\n"
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "rm -rf "${DESTINATION}" && DestRemoved=1\n"
     rm -rf "${DESTINATION}" && DestRemoved=1
     Log_Message "noConfig"
     exit 0
 fi
 
 ### Before mounting check if host or IP is alive and listening
-[[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-    echo -e "DEBUG_MESSAGE: ping -c 1 -W ${NETWORK_TIMEOUT} ${HOSTNAME} 1> /dev/null 2>&1\n"
-ping -c 1 -W ${NETWORK_TIMEOUT} ${HOSTNAME} 1> /dev/null 2>&1 || {
-    echo -e "'${LITTLE_BLUE}${HOSTNAME}${NC}' Not reachable, check the connection."
-    exit 1
+[[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "ping -c 1 -W ${NETWORK_TIMEOUT} ${HOSTNAME} &> /dev/null\n"
+ping -c 1 -W ${NETWORK_TIMEOUT} ${HOSTNAME} &> /dev/null || {
+    ERROR "'${LITTLE_BLUE}${HOSTNAME}${NC}' Not reachable, check the connection." 1
 }
 
 ### Fully unset, If private is not set
 if [[ ${PRIVATE_KEY} != "$HOME/.ssh" ]]; then
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: PRIVATE_KEY="-oIdentityFile=${PRIVATE_KEY}"\n"
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "PRIVATE_KEY="-oIdentityFile=${PRIVATE_KEY}"\n"
     PRIVATE_KEY="-oIdentityFile=${PRIVATE_KEY}"
 else
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: unset PRIVATE_KEY\n"
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "unset PRIVATE_KEY\n"
     unset PRIVATE_KEY
 fi
 
 if [[ -n ${PORT} ]]; then
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: PORT="-oPort=${PORT}"\n"
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "PORT="-oPort=${PORT}"\n"
     PORT="-oPort=${PORT}"
 else
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: unset PORT\n"
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "unset PORT\n"
     unset PORT
 fi
 
 ### Create destination directory
 if [[ ! -d "${DESTINATION}" ]]; then
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: mkdir "${DESTINATION}" 1> /dev/null 2>&1\n"
-    mkdir "${DESTINATION}" 1> /dev/null 2>&1 || {
-        echo -e "[${LITTEL_RED}ERROR${NC}]: Cannot create '${LITTLE_BLUE}${DESTINATION}${NC}'"
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "mkdir "${DESTINATION}" &> /dev/null"
+    mkdir -p "${DESTINATION}" &> /dev/null || {
+        ERROR "Cannot create '${LITTLE_BLUE}${DESTINATION}${NC}'" 1
     }
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: chmod ${DESTINATION_DIRECTORY_PERMISSION} "${DESTINATION}"\n"
-    chmod ${DESTINATION_DIRECTORY_PERMISSION} "${DESTINATION}" && \
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "chmod ${DESTINATION_DIRECTORY_PERMISSION} "${DESTINATION}"\n"
+    chmod ${DESTINATION_DIRECTORY_PERMISSION} "${DESTINATION}" && {
         permission_changed="yes" || permission_changed="no"
+    }
 fi
 
 ### Mount the remote or local device filesystem as a fuse.sshfs device using openssh protocal
-[[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-    echo -e "DEBUG_MESSAGE: timeout --signal KILL 8 sshfs ${PORT} ${PRIVATE_KEY} ${SSH_OPTIONS} "${USERNAME}@${HOSTNAME}:${SOURCE}" "${DESTINATION}"\n"
+[[ "${DEBUG}" -eq 1 ]]  && \
+   DEBUG_LOG "timeout --signal KILL 8 sshfs ${PORT} ${PRIVATE_KEY} ${SSH_OPTIONS} "${USERNAME}@${HOSTNAME}:${SOURCE}" "${DESTINATION}"\n"
 if timeout --signal KILL 8 sshfs ${PORT} ${PRIVATE_KEY} ${SSH_OPTIONS} "${USERNAME}@${HOSTNAME}:${SOURCE}" "${DESTINATION}"; then
     isMounted=1
         [[ ${permission_changed} != "yes" ]] && \
-            echo -e "[${LITTEL_RED}ERROR${NC}]: Cannot set permissions for '${LITTLE_BLUE}${DESTINATION}${NC}'"
+            ERROR "Cannot set permissions for '${LITTLE_BLUE}${DESTINATION}${NC}'" 0
     if [[ ${MOUNT_TIMEOUT} -ne 0 ]]; then
         (sleep ${MOUNT_TIMEOUT} && timeout --signal KILL 4 fusermount -u "${DESTINATION}") &
     fi
 else
     [[ -d "${DESTINATION}" ]] && {
-        [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-            echo -e "DEBUG_MESSAGE: timeout --signal KILL 4 mountpoint -q "${DESTINATION}"\n"
+        [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "timeout --signal KILL 4 mountpoint -q "${DESTINATION}"\n"
         timeout --signal KILL 4 mountpoint -q "${DESTINATION}" && {
-            [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-                echo -e "DEBUG_MESSAGE: timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1\n"
-            timeout --signal KILL 4 fusermount -u "${DESTINATION}" 1> /dev/null 2>&1
+            [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "timeout --signal KILL 4 fusermount -u "${DESTINATION}" &> /dev/null\n"
+            timeout --signal KILL 4 fusermount -u "${DESTINATION}" &> /dev/null
         }
     }
-    [[ "${ENABLE_DEBUGGING}" =~ ^(Yes|YES|yes|true)$ ]] && \
-        echo -e "DEBUG_MESSAGE: rm -rf "${DESTINATION}"\n"
+    [[ "${DEBUG}" -eq 1 ]] && DEBUG_LOG "rm -rf "${DESTINATION}"\n"
     rm -rf "${DESTINATION}"
     exit 1
 fi
 
-### Log the messages
+### Log the final messages
 Log_Message "showConfig"
 

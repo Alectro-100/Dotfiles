@@ -32,7 +32,7 @@ alias ll="lsd --long --color=always --git --icon=always --group-dirs=first --cla
 alias la="lsd --color=always --git --all --icon=always --group-dirs=first --classify --permission octal --total-size 2> /dev/null"
 
 alias diff="diff --color=auto"
-alias cp="echo -e '\033[38;2;240;80;100mUse rsync MF\033[0m'; return"
+alias cp="echo -e '\033[38;2;240;80;100mUse rsync MotherFucker\033[0m'; return"
 alias bat="bat --color=always --decorations=never"
 alias catbat="bat --color=always --decorations=never --paging=never"
 alias batnp="bat --color=always --paging=never --decorations=never"
@@ -182,13 +182,13 @@ function Extract() {
     local archive="$1"
 
     if [[ "${archive}" == *.tar  ]]; then
-        /usr/bin/tar --extract --verbose --file="${archive}"
+        tar --extract --verbose --file="${archive}"
     elif [[ "${archive}" == *.tar.gz  ]]; then
-        /usr/bin/tar --extract --gzip --verbose --file="${archive}"
+        tar --extract --gzip --verbose --file="${archive}"
     elif [[ "${archive}" == *.tar.xz  ]]; then
-        /usr/bin/tar --extract --xz --verbose --file="${archive}"
+        tar --extract --xz --verbose --file="${archive}"
     elif [[ "${archive}" == *.tar.bzip2  ]]; then
-        /usr/bin/tar --extract --bzip2 --verbose --file="${archive}"
+        tar --extract --bzip2 --verbose --file="${archive}"
     else
         echo "Sorry this is not tar archieve"
     fi
@@ -202,7 +202,7 @@ function Compile_C_cc() {
     local file="$1"
     local RM="$2"
     local file_no_ext="${file%%.*}"
-    /usr/bin/cc -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
+    gcc -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
     [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
     ./"$file_no_ext"
     local run_exit_code="$?"
@@ -214,7 +214,7 @@ function Compile_C_cc_DEBUG() {
     local file="$1"
     local RM="$2"
     local file_no_ext="${file%%.*}"
-    /usr/bin/cc -pedantic -Wall -Wextra -Werror -DDEBUG "$file" -o "${file%%.*}"
+    cc -pedantic -Wall -Wextra -Werror -DDEBUG "$file" -o "${file%%.*}"
     [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
     ./"$file_no_ext"
     local run_exit_code="$?"
@@ -226,7 +226,7 @@ function Compile_CPP_cc() {
     local file="$1"
     local RM="$2"
     local file_no_ext="${file%%.*}"
-    /usr/bin/cc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra -fno-elide-constructors \
+    gcc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra -fno-elide-constructors \
         "$file" -o "${file%%.*}"
     [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
     ./"$file_no_ext"
@@ -239,7 +239,7 @@ function Compile_CPP_cc_DEBUG() {
     local file="$1"
     local RM="$2"
     local file_no_ext="${file%%.*}"
-    /usr/bin/cc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra -Werror -DDEBUG  -fno-elide-constructors \
+    gcc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra -Werror -DDEBUG  -fno-elide-constructors \
         "$file" -o "${file%%.*}"
     [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
     ./"$file_no_ext"
@@ -252,7 +252,7 @@ function Compile_C_clang() {
     local file="$1"
     local RM="$2"
     local file_no_ext="${file%%.*}"
-    /usr/bin/clang -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
+    clang -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
     [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
     ./"$file_no_ext"
     local run_exit_code="$?"
@@ -264,7 +264,7 @@ function Compile_CPP_clang() {
     local file="$1"
     local RM="$2"
     local file_no_ext="${file%%.*}"
-    /usr/bin/clang++ -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
+    clang++ -pedantic -Wall -Wextra "$file" -o "${file%%.*}"
     [[ $? -ne 0 ]] && echo "${RED}Compilation Failed${no_col}"
     ./"$file_no_ext"
     local run_exit_code="$?"
@@ -274,7 +274,7 @@ function Compile_CPP_clang() {
 
 function Yt-dlp_download() {
     local url="$@"
-    /usr/bin/yt-dlp -f "bestvideo[height<=1080]+bestaudio/audio[height<=1080]" "$url"
+    yt-dlp -f "bestvideo[height<=1080]+bestaudio/audio[height<=1080]" "$url"
 }
 
 function Steam() {

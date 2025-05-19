@@ -160,7 +160,7 @@
 
     "memory": {
         // "format": "{}%  ",
-        "format": "  {}%"
+        "format": "  {}%",
     },
 
     "temperature": {
@@ -200,8 +200,8 @@
         "format-alt": "  {essid} ({signalStrength}%)",
         "tooltip-format": "{ifname} via {gwaddr} ",
         "format-linked": "{ifname} (No IP) ",
-        "format-ethernet": "󰌘",
-        "format-disconnected": "󰌙",
+        "format-ethernet": "{ifname} 󰌘",
+        "format-disconnected": "󰌙 Disconnected",
         "tooltip-format": "SSID: {essid}\nIP: {ipaddr}\nSpeed:  {bandwidthDownBits}  {bandwidthUpBits}\nStrength: {signalStrength}%",
         "tooltip-format-ethernet": "{ifname} 󰌘",
         "tooltip-format-disconnected": "󰌙 Disconnected",

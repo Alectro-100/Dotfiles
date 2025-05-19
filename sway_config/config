@@ -19,7 +19,7 @@ exec --no-startup-id autotiling
 
 ### Easyeffects
 exec --no-startup-id bash -c \
-      "$( (swaymsg exec flatpak run com.github.wwmm.easyeffects) ; sleep 4 ; swaymsg "[app_id="com.github.wwmm.easyeffects"] move scratchpad" )"
+      "$( (swaymsg exec flatpak run com.github.wwmm.easyeffects) ; sleep 5 ; swaymsg "[app_id="com.github.wwmm.easyeffects"] move scratchpad" )"
 
 ### Sway lock
 exec --no-startup-id swayidle -w timeout 200 'swaylock --daemonize --image $HOME/.config/sway/lock_screen/bg.jpg' \
@@ -73,12 +73,11 @@ set $menu_rofi rofi -show-icons -font Hack -theme material -show drun
 
 
 ### Cursor will go vanish in 6 seconds (Seat devices)
-    seat * hide_cursor 6000
+    seat * hide_cursor 500
 
 
 ### Enable Xwayland
 xwayland enabled
-
 
 ### Input devices
 
@@ -292,11 +291,11 @@ xwayland enabled
 
     # Start recording fullscreen! (Win+Alt+V)
     bindsym $mod+Alt+V exec bash -c \
-        "$(wf-recorder --file=$HOME/Videos/WF_Recorder/recording_$(date +%d-%b-%Y_%H:%M:%S).mp4)"
+        "$(wf-recorder --file=$HOME/Videos/WF_Recorder/Rec_$(date +%d-%b-%Y_%H:%M:%S).mp4)"
 
     # Start recording for selected screen (Win+Alt+B)
     bindsym $mod+Alt+B exec bash -c \
-        "$(wf-recorder -g '$(slurp)' --file=$HOME/Videos/WF_Recorder/recording_$(date +%d-%b-%Y_%H:%M:%S).mp4)"
+        "$(wf-recorder -g '$(slurp)' --file=$HOME/Videos/WF_Recorder/Rec_$(date +%d-%b-%Y_%H:%M:%S).mp4)"
 
     # Stop recording send INT sig to the recorder (Win+Alt+C)
     bindsym $mod+Alt+C exec bash -c \
@@ -329,6 +328,9 @@ xwayland enabled
     ### Kill all cava instances
     bindsym $mod+Q exec "$HOME/.bin/cava_instances KILL_CAVA"
 
+    ### Keyboard centric browser
+    bindsym Alt+B exec qutebrowser
+
     ### Window rules
     for_window {
 
@@ -348,9 +350,9 @@ xwayland enabled
         # Enabele floating don't tile
         [app_id="^waterfox$|^com.rtosta.zapzap$|^org.pulseaudio.pavucontrol$|^com.github.wwmm.easyeffects"] floating enable
         [app_id="^org.kde.dolphin$|^org.kde.plasma-systemmonitor$|^blueman-manager$|^org.kde.konsole"] floating enable
-        [app_id="^org.kde.okular$"] floating enable
+        [app_id="^org.kde.okular$|^org.qutebrowser.qutebrowser$"] floating enable
 
-        [class="^Brave-browser$|^discord$"] floating enable
+        [class="^Brave-browser$|^ZapZap$|^discord$"] floating enable
     }
 
     # Border padding

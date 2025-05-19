@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+IMAGE_NAME="ollama/ollama"
+CONTAINER_NAME="ollama"
+VOLUME_NAME="ollama"
+
+# Ensure volume exists
+if ! docker volume inspect "$VOLUME_NAME" &>/dev/null; then
+    docker volume create "$VOLUME_NAME"
+fi
+
+# Ensure image is available
+if ! docker image inspect "$IMAGE_NAME" &>/dev/null; then
+    docker pull "$IMAGE_NAME"
+fi
+
+# Check if container is running
+if docker ps --filter "name=^/${CONTAINER_NAME}$" --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
+    docker exec -it "$CONTAINER_NAME" bash -c 'cd ~ && (command -v zsh && exec zsh) || exec bash'
+else
+    # Try to start existing container, else create a new one
+    docker start "$CONTAINER_NAME" &>/dev/null || docker run --gpus all -dt \
+        -v "$VOLUME_NAME":/root/.ollama \
+        -p 11434:11434 \
+        --name "$CONTAINER_NAME" \
+        --hostname Ollama \
+        "$IMAGE_NAME"
+fi
+

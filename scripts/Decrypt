@@ -1,0 +1,6 @@
+#!/bin/bash
+
+ENCRYPTED_FILE="$1"
+
+gpg --pinentry-mode loopback --decrypt "$ENCRYPTED_FILE" 1> "${ENCRYPTED_FILE%.*}"
+
