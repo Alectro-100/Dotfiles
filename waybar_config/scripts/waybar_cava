@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Actual bar string
+BAR=""
+# Create cava config
+CONFIG_FILE="/tmp/.waybar_cava_config"
+# change the length of cava visualizer
+bar_len=6
+# 1 Use alternative bar. 0 don't use alternative
+use_bar_num=0
+
+DICT="s/;//g"
+
+# Bar characters (represents visualizer levels)
+function SetBars() {
+    local ALT_BAR="$1"
+
+    if [[ $ALT_BAR -eq 0 || -z $ALT_BAR ]]; then
+        BAR="▁▂▃▄▅▆▇█" ## Default one
+        for i in $(seq 1 $((bar_len*2))); do
+            CAVA_BAR+="${BAR:0:1}"
+        done
+    else
+        BAR="░▒▓█" ## Alternative BAR
+        for i in $(seq 1 $((bar_len*2))); do
+            CAVA_BAR+="${BAR:0:1}"
+        done
+    fi
+}
+
+## Set the BARs
+SetBars ${use_bar_num:-0}
+
+# Create dictionary to replace char with BAR
+for ((i = 0; i < ${#BAR}; i++)); do
+    DICT+=";s/$i/${BAR:$i:1}/g"
+done
+
+cat > "${CONFIG_FILE}" << EOF
+[general]
+BARs = ${#CAVA_BAR}
+framerate = 36
+
+[input]
+method = pulse
+source = auto
+
+[output]
+method = raw
+raw_target = /dev/stdout
+data_format = ascii
+ascii_max_range = $((${#BAR} - 1))
+
+[smoothing]
+noise_reduction = 34
+EOF
+
+# Kill existing cava process
+pkill -f "cava -p ${CONFIG_FILE}"
+
+# Read stdout from cava, transform output, and check for activity
+cava -p "${CONFIG_FILE}" | while read -r line; do
+    visualizer_output=$(echo "${line}" | sed -u "${DICT}")
+
+    # Detect if there's any visualizer activity (i.e., non-empty output)
+    if [[ -n "${visualizer_output}" && "${visualizer_output}" != "${CAVA_BAR}" ]]; then
+        # Send JSON output with a class to enable blinking
+        echo "${visualizer_output}"
+        echo "${CAVA_BAR}"
+
+        echo "{\"text\": \"${visualizer_output}\", \"class\": \"active\"}"
+    else
+        # Send JSON output with a class to disable blinking
+        echo "{\"text\": \"${visualizer_output}\", \"class\": \"inactive\"}"
+    fi
+done
+

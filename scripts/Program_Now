@@ -1,0 +1,54 @@
+#!/bin/bash
+
+### Colors
+green="\033[1;32m"
+red="\033[1;31m"
+mild_green="\033[38;2;10;110;10m"
+no_col="\033[0m"
+Editor="/usr/bin/vim"
+
+DIRECORY="${HOME}/Notes/Programming"
+
+### Arguments
+NUM="$1"
+flag="$2"
+
+### File
+FILE="${HOME}/Notes/Programming/Projects/Project$NUM.c++"
+
+if [[ $# -eq 0 ]] ; then
+    echo -e "Usage: ${mild_green}$(basename $0) <Index> <Editor>${no_col}"
+    exit 1
+fi
+
+test -d ${DIRECORY} || {
+    echo -e "[${red}ERROR${no_col}]: '${DIRECORY}' not found"
+    exit 1
+}
+
+if [[ ! -f "$FILE" ]] && [[ "$NUM" -ne 0 ]]; then
+    touch "$FILE" && {
+        echo -e "Created ${green}${FILE}${no_col}"
+        exit 0
+    }
+fi
+
+if [[ -n "${flag}" ]]; then
+    if command -v "${flag}" 1> /dev/null 2>&1 ; then
+        Editor="${flag}"
+    else
+        Editor="/usr/bin/vim"
+    fi
+fi
+
+
+if [[ "$NUM" -eq 0 ]] ; then
+    "${Editor}" "${DIRECORY}/Projects.md"
+    exit 0
+else
+    [[ $NUM =~ ^([0-9]+)$ ]] && {
+        "${Editor}" "${FILE}"
+        exit 0
+    }
+fi
+

@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+
+IMAGE_NAME=""
+
+CONTAINER_NAME="$1"
+shift
+ARGS=("$@")
+
+VOLUME_NAME=""
+BIND_PORT=""
+NO_IMAGE=1
+NO_VOLUME=1
+
+RED="\033[38;2;244;0;0m"
+GREEN="\033[38;2;0;244;0m"
+ORANGE="\033[38;2;255;184;64m"
+BLUE="\033[38;2;98;192;244m"
+NC="\033[0m"
+
+function INFO() {
+    echo -e "[${GREEN}*${NC}]: $1"
+}
+
+function WARN() {
+    echo -e "[${ORANGE}?${NC}]: $1"
+}
+
+function ERROR() {
+    echo -e "[${RED}!${NC}]: $1"
+    exit 1
+}
+
+function StopDocker() {
+    if systemctl --quiet is-active docker; then
+        INFO "Stopping docker services"
+        sudo systemctl --quiet stop docker.service docker.socket
+        INFO "Services stopped"
+    else
+        INFO "Docker services are already stopped"
+    fi
+}
+
+function StartDocker() {
+    if ! systemctl --quiet is-active docker; then
+        INFO "Starting docker services"
+        sudo systemctl --quiet start docker
+    fi
+}
+
+function ExecIntoContainer() {
+   docker exec -it "$CONTAINER_NAME" bash -c \
+    '
+        cd ~
+        if command -v zsh &> /dev/null; then
+            exec zsh
+        else
+            exec bash
+        fi
+    '
+}
+
+function CapitalizeFirst() {
+    echo "$(tr 'a-z' 'A-Z' <<< ${1:0:1})${1:1}"
+}
+
+function CreateContainer() {
+    [[ ${CONTAINER_NAME} == "ollama" ]] && BIND_PORT="11434:11434"
+
+    docker run --gpus all -dt \
+    -v "${VOLUME_NAME}":${HOME}/.docker_volume \
+    -p $BIND_PORT \
+    --name "${CONTAINER_NAME}" \
+    --hostname "$(CapitalizeFirst ${CONTAINER_NAME})" \
+    "${IMAGE_NAME}"
+}
+
+for (( i=0 ; i < ${#ARGS[@]} ; i++ )); do
+    arg="${ARGS[$i]}"
+    case "${arg}" in
+        --stop|stop)
+            StopDocker || ERROR "Cannot stop Docker services"
+            ;;
+        --start|start)
+            StartDocker || INFO "Docker services are already stopped"
+            ;;
+        -img|--img|--image)
+            IMAGE_NAME="${ARGS[$((i+1))]}"
+            NO_IMAGE=0
+            i=$((i+1))
+            ;;
+        -vol|--vol|--volume)
+            VOLUME_NAME="${ARGS[$((i+1))]}"
+            NO_VOLUME=0
+            i=$((i+1))
+            ;;
+    esac
+done
+
+if [[ ${CONTAINER_NAME} == "stop" ]]; then
+    StopDocker || ERROR "Cannot stop Docker services"
+    exit 0
+fi
+
+# Validate input
+[[ $VOLUME_NAME -eq 1 ]] && VOLUME_NAME="$CONTAINER_NAME"
+[[ $NO_IMAGE -eq 1 ]] && IMAGE_NAME="$CONTAINER_NAME"
+
+# Start docker if not active
+StartDocker
+
+# Ensure volume exists
+if [[ $NO_VOLUME -eq 0 ]]; then
+    if ! docker volume inspect "${VOLUME_NAME}" &> /dev/null; then
+        INFO "Creating volume ${VOLUME_NAME}"
+        docker volume create "${VOLUME_NAME}"
+    fi
+fi
+
+# Ensure image is available
+if [[ $NO_IMAGE -eq 0 ]]; then
+    if ! docker image inspect "${IMAGE_NAME}" &> /dev/null; then
+        INFO "Pulling image ${IMAGE_NAME}"
+        docker pull "${IMAGE_NAME}"
+    fi
+fi
+
+# Check if container exists or not
+if ! docker inspect "$CONTAINER_NAME" &> /dev/null; then
+    ERROR "Container ${BLUE}${CONTAINER_NAME}${NC} not found."
+fi
+
+# Check if container is running
+if docker ps --filter "name=^/${CONTAINER_NAME}$" --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
+        INFO "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
+        ExecIntoContainer || ERROR "Cannot start container ${BLUE}${CONTAINER_NAME}${NC}"
+else
+    # Try to start existing container, else create a new one
+    if docker start "$CONTAINER_NAME" &>/dev/null; then
+        INFO "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
+        ExecIntoContainer || ERROR "Cannot start container ${BLUE}${CONTAINER_NAME}${NC}"
+    else
+        INFO "Creating new container instance of ${BLUE}${CONTAINER_NAME}${NC}"
+        CreateContainer || ERROR "Failed to create container from image ${IMAGE_NAME}"
+    fi
+fi
+

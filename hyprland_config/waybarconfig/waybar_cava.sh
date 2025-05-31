@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Bar characters (represents visualizer levels)
+bar="▁▂▃▄▅▆▇█"
+dict="s/;//g"
+
+# Calculate the length of the bar outside the loop
+bar_length=${#bar}
+
+# Create dictionary to replace char with bar
+for ((i = 0; i < bar_length; i++)); do
+    dict+=";s/$i/${bar:$i:1}/g"
+done
+
+# Create cava config
+config_file="/tmp/bar_cava_config"
+cat > "$config_file" << EOF
+[general]
+bars = 10
+framerate = 45
+
+[input]
+method = pulse
+source = auto
+
+[output]
+method = raw
+raw_target = /dev/stdout
+data_format = ascii
+ascii_max_range = 6
+
+[smoothing]
+noise_reduction = 34
+EOF
+
+# Kill existing cava process
+pkill -f "cava -p $config_file"
+
+# Read stdout from cava, transform output, and check for activity
+cava -p "$config_file" | while read -r line; do
+    visualizer_output=$(echo "$line" | sed -u "$dict")
+
+    # Detect if there's any visualizer activity (i.e., non-empty output)
+    if [[ -n "$visualizer_output" && "$visualizer_output" != "▁▁▁▁▁▁▁▁▁▁" ]]; then
+        # Send JSON output with a class to enable blinking
+        echo "{\"text\": \"$visualizer_output\", \"class\": \"active\"}"
+    else
+        # Send JSON output with a class to disable blinking
+        echo "{\"text\": \"$visualizer_output\", \"class\": \"inactive\"}"
+    fi
+done
+

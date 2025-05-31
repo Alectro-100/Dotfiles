@@ -1,0 +1,14 @@
+#!/bin/bash
+
+SOCKET="/tmp/mpv_socket"
+
+rm -f "$SOCKET"
+
+listen() {
+    socat -u UNIX-LISTEN:"$SOCKET",fork - | while read -r line; do
+        echo "$line"
+    done
+}
+
+listen
+

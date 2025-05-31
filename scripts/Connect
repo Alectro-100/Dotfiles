@@ -1,0 +1,5 @@
+#!/bin/bash
+
+NET_NAME="$1"
+/usr/bin/nmcli device wifi connect "$NET_NAME" --ask
+

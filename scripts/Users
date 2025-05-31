@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Currently active users
+CURRENT_USERS="$(ps -eo user= | sort | uniq)"
+
+# Valid users in /etc/passwd file
+VALID_USERS=$(getent passwd | awk -F':' '!/nologin|daemon/ {printf "%s ", $1}')
+
+# Print the users
+for user in ${VALID_USERS}; do
+    if [[ "${user}" == "$(whoami)" ]]; then
+        echo "$user (you)"
+    else
+        for u in $CURRENT_USERS; do
+            [[ "${user}" == "${u}" ]] && echo "${u}"
+        done
+    fi
+done
+
+# Exit with no errors
+exit 0
+
