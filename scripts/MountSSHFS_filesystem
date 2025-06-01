@@ -1,0 +1,556 @@
+#!/bin/bash
+
+# -----------------------------------------------------------------------------
+# @title    MountSSHFS_filesystem
+# @desc     A portable SSHFS mounting utility script with network checks,
+#           timeout auto-unmounting, and remote config editing via terminal.
+# @author   Zyren
+# @version  1.0
+# @license  MIT
+# @repo     https://github.com/your-username/dotfiles (or wherever you keep it)
+# -----------------------------------------------------------------------------
+
+### Default Config ###
+declare -A CONFIG=(
+    # Remote SSH username
+    [USERNAME]=
+    # Remote host (IP or FQDN (Fully Qualified Domain Name))
+    [HOSTNAME]=
+    # Remote path to mount
+    [SOURCE]=
+    # Local mount point
+    [DESTINATION]=
+    # SSH Port (Usually 22)
+    [PORT]=
+    # Path to SSH private key
+    [PRIVATE_KEY]=
+    # Extra SSHFS options
+    [SSH_OPTIONS]=
+    # Enable script debugging
+    [DEBUG]=0
+    # Enable colors
+    [COLORS]=1
+    # Ping timeout (sec) before mounting
+    [NETWORK_TIMEOUT]=3
+    # Auto un-mount after N seconds (0 = disable)
+    [MOUNT_TIMEOUT]=0
+    # Permissions apply to Local mount point
+    [DESTINATION_DIRECTORY_PERMISSIONS]=755
+)
+
+# Arguments passed to the script
+ARGS_ARR=($@)
+
+# Operation flags
+EDIT_CONFIG=0     # Trigger config file editing
+SHOW_CONFIG=0     # Show current config
+UNMOUNT=0         # Unmount requested
+OVERRIDE_COLOR=0  # Override color config with args
+OVERRIDE_DEBUG=0  # Override debug config with args
+USE_SUDO=0        # Manually set it to Force sudo for mount/unmount
+SUDO=""           # Will hold "sudo" if needed
+
+
+# Path to temporary config file used between sessions
+readonly CONFIG_FILE="/tmp/.sshfsMountScriptConf"
+
+### Unified logging logging function
+# Supported log types: info | warm | error | debug
+function LOG() {
+    local type_="$1"
+    shift
+    case "$type_" in
+        info)
+            echo -e "[${GREEN}${type_}${NC}]: $@"
+            ;;
+        warn)
+            echo -e "[${ORANGE}${type_}${NC}]: $@"
+            ;;
+        error)
+            echo -e "[${RED}${type_}${NC}]: $@"
+            ;;
+        debug)
+            [[ ${CONFIG[DEBUG]} -eq 1 || $OVERRIDE_DEBUG -eq 1 ]] && echo -e "[${DEBUG_GRAY}${type_}${NC}]: $@"
+            ;;
+    esac
+}
+
+# Immediately exit when FATAL is called
+function FATAL() {
+    [[ $2 -gt 0 ]] && {
+        echo -e "[${RED}!!${NC}]: $2 errors encountered"
+        echo -e "[${RED}FATAL${NC}] $1"
+        exit $2
+    }
+}
+
+# Installs a package using the system's package manager
+# Detects pacman, apt, dnf, or yum
+function InstallTool() {
+    if command -v pacman &> /dev/null; then
+        sudo pacman -Sy --noconfirm $1
+    elif command -v apt &> /dev/null ; then
+        sudo apt update && sudo apt install -y $1
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y $1
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y $1
+    fi
+}
+
+# Auto-detects and sets a tui text editor (nvim > vim > nano) for config editing
+# Falls back to installing vim if none found
+function SetTextEditor() {
+    if command -v nvim 1> /dev/null 2>&1; then
+        EDITOR="nvim"
+    elif command -v vim  1> /dev/null 2>&1; then
+        EDITOR="vim"
+    elif command -v nano 1> /dev/null 2>&1; then
+        EDITOR="nano"
+    else
+        LOG warn "NO text editor found on your system"
+        LOG info "Installing vim"
+        InstallTool "vim"
+    fi
+}
+
+# Displays an ASCII-style script banner
+function DrawBanner() {
+  echo -e "\n${YELLOW}╔═══════════════════════════╗"
+  echo -e "║ SSHFS Mount Utility 🧠⚡ ║"
+  echo -e "╚═══════════════════════════╝${NC}\n"
+}
+
+# Nicely formats and prints current loaded config to stdout
+# Triggered by --show or DEBUG=1
+function ShowConfigFile() {
+    if [[ ${CONFIG[DEBUG]} -eq 1 || $SHOW_CONFIG -eq 1 ]]; then
+        echo -e "#================#"
+        echo -e "# Current Config #"
+        echo -e "#=============#=============================================================#"
+        echo -e "# ${GRAY}### SSH Username on the remote device${NC}"
+        echo -e "# ${ORANGE}USERNAME${NC}=\"${CONFIG[USERNAME]}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Ip address or FQDN (FUlly Qualified Domain Name) of the remote${NC}"
+        echo -e "# ${ORANGE}HOSTNAME${NC}=\"${CONFIG[HOSTNAME]}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Remote path to mount${NC}"
+        echo -e "# ${ORANGE}SOURCE${NC}=\"${CONFIG[SOURCE]}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Local directory or mount the remote path to${NC}"
+        echo -e "# ${ORANGE}DESTINATION${NC}=\"${CONFIG[DESTINATION]}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Private key for SSH authentication${NC}"
+        echo -e "# ${ORANGE}PRIVATE_KEY${NC}=\"${CONFIG[PRIVATE_KEY]}\""
+        echo -e "#"
+        echo -e "# ${GRAY}### Additional SSH options (e.g., -oreconnect)${NC}"
+        echo -e "# ${ORANGE}SSH_OPTIONS${NC}=\"${CONFIG[SSH_OPTIONS]}"\"
+        echo -e "#"
+        echo -e "# ${GRAY}### SSH Port to use for connection${NC}"
+        echo -e "# ${ORANGE}PORT${NC}=${CONFIG[PORT]}"
+        echo -e "#"
+        echo -e "# ${GRAY}### Enable bash script debugging (yes or no)${NC}"
+        echo -e "# ${ORANGE}DEBUG${NC}=${CONFIG[DEBUG]}"
+        echo -e "#"
+        echo -e "# ${GRAY}### Timeout in seconds to wait for the remote host to respond (Network check)${NC}"
+        echo -e "# ${ORANGE}NETWORK_TIMEOUT${NC}=${BLUE}${CONFIG[NETWORK_TIMEOUT]}${NC}"
+        echo -e "#"
+        echo -e "# ${GRAY}### Automatically unmount after this many seconds (0 to disable)${NC}"
+        echo -e "# ${ORANGE}MOUNT_TIMEOUT${NC}=${BLUE}${CONFIG[MOUNT_TIMEOUT]}${NC}"
+        echo -e "#"
+        echo -e "# ${GRAY}### Set permission mode (e.g., 755) for the mount directory after mounting${NC}"
+        echo -e "# ${ORANGE}DESTINATION_DIRECTORY_PERMISSIONS${NC}=${BLUE}${CONFIG[DESTINATION_DIRECTORY_PERMISSIONS]}${NC}"
+        echo -e "#"
+        echo -e "#===========================================================================#"
+        echo -e ""
+    fi
+}
+
+# Writes CONFIG associative array values into a temporary bash-style config file
+# Used for persistence across script runs
+function WriteToFile() {
+cat > "$CONFIG_FILE" << EOF
+#!/usr/bin/env bash
+
+### Configuration File for SSHFS Mounting
+
+### SSH Username on the remote device
+USERNAME="${CONFIG[USERNAME]}"
+
+### Ip address or FQDN (Fully Qualified Domain Name) of the remote
+HOSTNAME="${CONFIG[HOSTNAME]}"
+
+### Remote path to mount
+SOURCE="${CONFIG[SOURCE]}"
+
+### SSH Port to use for connection
+PORT="${CONFIG[PORT]}"
+
+### Local directory or mount the remote path to
+DESTINATION="${CONFIG[DESTINATION]}"
+
+### Private key for SSH authentication
+PRIVATE_KEY="${CONFIG[PRIVATE_KEY]}"
+
+### Additional SSH options (e.g., -oreconnect)
+SSH_OPTIONS="${CONFIG[SSH_OPTIONS]}"
+
+### Enable bash script debugging (yes or no)
+DEBUG=${CONFIG[DEBUG]}
+
+### Enable colors
+COLORS=1
+
+### Timeout in seconds to wait for the remote host to respond (Network check)
+NETWORK_TIMEOUT=${CONFIG[NETWORK_TIMEOUT]}
+
+### Automatically unmount after this many seconds (0 to disable)
+MOUNT_TIMEOUT=${CONFIG[MOUNT_TIMEOUT]}
+
+### Set permission mode (e.g., 755) for the mount directory before mounting
+DESTINATION_DIRECTORY_PERMISSIONS=${CONFIG[DESTINATION_DIRECTORY_PERMISSIONS]}
+
+# vim:filetype=sh
+
+EOF
+}
+
+# Opens config file using $EDITOR
+# If config file doesn’t exist or is empty, creates it with defaults
+function EditConfig() {
+    SetTextEditor # Set the terminal text editor
+    if [[ ! -s "$CONFIG_FILE" ]]; then
+        WriteToFile && LOG info "New Config file crated: ${LITTLE_BLUE}${CONFIG_FILE}${NC}"
+    fi
+    if [[ -n "$CONFIG_FILE" ]]; then
+        ${EDITOR} "$CONFIG_FILE"
+        exit 0
+    else
+        LOG error "${ORANGE}CONFIG_FILE${NC} var is empty"
+        FATAL "Exiting..." 1
+    fi
+}
+
+function SetColors() {
+    # ANSI escape sequences for RGB-based color output (eye candy logging in terminal)
+    LOG debug "[[ \$OVERRIDE_COLOR -eq 1 || \${CONFIG[COLORS]} -eq 1 ]]"
+    if [[ $OVERRIDE_COLOR -eq 1 || ${CONFIG[COLORS]} -eq 0 ]]; then
+        RED= GREEN= BLUE= DEBUG_GRAY= LITTLE_BLUE= YELLOW= SKIN_COL= GRAY= ORANGE= NC=
+        return
+    fi
+    RED="\033[38;2;255;75;75m"
+    GREEN="\033[38;2;138;230;81m"
+    BLUE="\033[38;2;152;60;200m"
+    DEBUG_GRAY="\033[38;2;200;200;200m"
+    LITTLE_BLUE="\033[38;2;126;117;255m"
+    YELLOW="\033[38;2;226;220;120m"
+    SKIN_COL="\033[38;2;170;170;127m"
+    GRAY="\033[38;2;125;125;125m"
+    ORANGE="\033[38;2;255;170;10m"
+    NC="\033[0m"
+}
+
+function TermuxUser() {
+    ### Helping Messages for termux user
+    LOG info "The termux default user home directory '${LITTLE_BLUE}${CONFIG[DESTINATION]}/data/data/com.termux/files/home${NC}'"
+    LOG info "Phone's internal stroage filesystem '${LITTLE_BLUE}${CONFIG[DESTINATION]}/storage/emulated/0/${NC}'"
+}
+
+function LoadConfigFile() {
+    exit_=0
+    LOG debug "source ${CONFIG_FILE}"
+    source "$CONFIG_FILE"
+
+    for key in SOURCE DESTINATION USERNAME HOSTNAME PORT \
+            PRIVATE_KEY COLORS SSH_OPTIONS DEBUG NETWORK_TIMEOUT \
+                MOUNT_TIMEOUT DESTINATION_DIRECTORY_PERMISSIONS; do
+        LOG debug "CONFIG[$key]=${!key}"
+        CONFIG[$key]="${!key}"
+        [[ -z "${CONFIG[$key]}" ]] && LOG debug "Empty variable CONFIG[$key]='${CONFIG[$key]}'"
+        unset "$key"
+    done
+    [[ -z "${CONFIG[USERNAME]}" ]] && {
+        LOG error "No USERNAME given in the config? assuming it's root now."
+    }
+    [[ -z "${CONFIG[HOSTNAME]}" ]] && {
+        LOG error "No HOSTNAME given in the config?"
+        exit_=$((exit_ + 1))
+    }
+    [[ -z "${CONFIG[SOURCE]}" ]] && {
+        LOG error "No SOURCE given in the config?"
+        exit_=$((exit_ + 1))
+    }
+    [[ -z "${CONFIG[DESTINATION]}" ]] && {
+        LOG error "No DESTINATION given in the config?"
+        exit_=$((exit_ + 1))
+    }
+
+    ShowConfigFile
+    FATAL "Exiting ..." $exit_
+}
+
+# Prompts user interactively to fill in CONFIG values
+# Uses defaults when input is empty
+function GetConfig() {
+    echo -en "${LITTLE_BLUE}User${NC}: "
+    read -r CONFIG[USERNAME]
+    [[ -z "${CONFIG[USERNAME]}" ]] && \
+        CONFIG[USERNAME]="root"
+
+    echo -en "${LITTLE_BLUE}Host${NC}: "
+    read -r CONFIG[HOSTNAME]
+    [[ -z "${CONFIG[HOSTNAME]}" ]] && {
+        LOG error "Not IP/FQDN specified"
+        FATAL "Exiting..." 1
+    }
+
+    echo -en "${LITTLE_BLUE}Port${NC}: "
+    read -r CONFIG[PORT]
+    [[ -z "${CONFIG[PORT]}" ]] && \
+        CONFIG[PORT]=22
+
+    echo -en "${LITTLE_BLUE}Remote Source${NC}: "
+    read -r CONFIG[SOURCE]
+    [[ -z "${CONFIG[SOURCE]}" ]] && \
+        CONFIG[SOURCE]="/"
+
+    echo -en "${LITTLE_BLUE}Local Destination${NC}: "
+    read -r CONFIG[DESTINATION]
+    [[ -z "${CONFIG[DESTINATION]}" ]] && \
+        CONFIG[DESTINATION]="/tmp/DEFAULT_MOUNT"
+
+    echo -en "${LITTLE_BLUE}Mounted SSHFS device timeout${NC}: "
+    read -r CONFIG[MOUNT_TIMEOUT]
+    [[ -z "${CONFIG[MOUNT_TIMEOUT]}" ]] && \
+        CONFIG[MOUNT_TIMEOUT]=0
+
+    echo -en "${LITTLE_BLUE}SSH options${NC}: "
+    read -r CONFIG[SSH_OPTIONS]
+    [[ -z "${CONFIG[SSH_OPTIONS]}" ]] && \
+        CONFIG[SSH_OPTIONS]=
+
+    echo -en "${LITTLE_BLUE}Private Key${NC}: "
+    read -r CONFIG[PRIVATE_KEY]
+    [[ -z "${CONFIG[PRIVATE_KEY]}" ]] && \
+        CONFIG[PRIVATE_KEY]=
+}
+
+function AttemptUnMount() {
+    local MOUNT="${CONFIG[DESTINATION]}"
+    # If it's not a mount point
+    if ! mountpoint -q ${MOUNT}; then
+        return 1
+    else
+        LOG debug "Attempting to unmount: ${MOUNT}"
+    fi
+
+    LOG debug "Using lazy unmount"
+    # Clean lazy unmount
+    if timeout 2 fusermount -uz "${MOUNT}" &> /dev/null; then
+        LOG info "Successfully lazy unmount via fusermount: ${MOUNT}"
+        rm -rf "$MOUNT"
+        return 0
+    else
+        LOG error "Mount failed"
+        sudo umount -l "${MOUNT}" &> /dev/null || {
+            LOG warn "Mount still stuck, likely a zombie"
+            LOG info "Killing sshfs"
+            pkill -f sshfs && return 0
+        }
+        return 1
+    fi
+
+    LOG warn "fusermount -uz ${MOUNT} failed. Trying fallback methods"
+
+    # Check if anything holding the mount point
+    if command -v lsof &> /dev/null; then
+        LOG info "files still open:"
+        lsof +D "${MOUNT}"
+    elif command -v fuser &> /dev/null; then
+        LOG info "Files still open:"
+        fuser -vm "${MOUNT}"
+    else
+        LOG warn "No lsof or fuser available to check open files"
+        return 1
+    fi
+    # kill sshfs tied to this mount
+    if timeout 2 pkill sshfs; then
+        LOG info "Killed sshfs process holding $MOUNT"
+    fi
+    # After killing sshfs try lazy unmount again
+    if timeout 2 fusermount -uz "${MOUNT}" &> /dev/null; then
+        LOG info "Successfully unmount '${MOUNT}' after killing sshfs"
+        rm -rf "$MOUNT"
+        return 0
+    fi
+    # Final check in /proc/mounts
+    if grep -q "$MOUNT" /proc/mounts; then
+        LOG warn "Mount still listed in /proc/mounts — might be zombie"
+        LOG info "Final attempt with lazy unmount"
+        sudo umount -l "$MOUNT" &>/dev/null && return 0
+    fi
+    return 0
+}
+
+function AttemptMount() {
+    for i in {1..3}; do
+        LOG info "attemting mount $i"
+        LOG debug "Running: sshfs ${SSHFS_CMD[@]}"
+        sshfs "${SSHFS_CMD[@]}" && return 0
+        sleep $((i*2))
+    done
+    return 1
+}
+
+### Parses script arguments like --edit, --show, --sudo, --unmount, etc.
+# Sets flags for conditional execution later
+for (( i=0 ; i < ${#ARGS_ARR[@]}; i++ )); do
+    arg="${ARGS_ARR[$i]}"
+    case "$arg" in
+        -e|--edit|edit)
+            EDIT_CONFIG=1
+            LOG debug "EDIT_CONFIG=1"
+            ;;
+        -d|--debug)
+            CONFIG[DEBUG]=1
+            OVERRIDE_DEBUG=1
+            LOG debug "CONFIG[DEBUG]=1"
+            LOG debug "OVERRIDE_DEBUG=1"
+            ;;
+        -s|--show)
+            LOG debug "SHOW_CONFIG=1"
+            SHOW_CONFIG=1
+            ;;
+        -su|--sudo)
+            SUDO="sudo "
+            LOG debug "SUDO=sudo "
+            ;;
+        -nc|--no-color|--nocolor)
+            CONFIG[COLORS]=0
+            OVERRIDE_COLOR=1
+            LOG debug "CONFIG[COLORS]=0"
+            LOG debug "OVERRIDE_COLOR=1"
+            ;;
+        -u|--umount|--unmount)
+            UNMOUNT=1
+            LOG debug "UNMOUNT=1"
+            ;;
+        *)
+            LOG error "Invalid argument $arg"
+            ;;
+    esac
+done
+
+
+LOG debug "Calling SetColors"
+SetColors
+
+# If a previously written config file exists, source it
+# Else, prompt user to provide config interactively and save the config
+LOG debug "[[ ! -s \$CONFIG_FILE && \$# -eq 0 ]]"
+if [[ ! -s "$CONFIG_FILE" && $# -eq 0 ]]; then
+    # Get config values
+    LOG debug "Calling GetConfig()"
+    GetConfig
+    # After getting values, write to config
+    LOG debug "Calling WriteToFile()"
+    WriteToFile && LOG info "New Config file crated: ${LITTLE_BLUE}${CONFIG_FILE}${NC}"
+
+LOG debug "[[ \$EDIT_CONFIG -eq 1 ]]"
+elif [[ $EDIT_CONFIG -eq 1 ]]; then
+    LOG debug "Calling EditConfig()"
+    EditConfig
+
+LOG debug "[[ -s \$CONFIG_FILE ]]"
+elif [[ -s "$CONFIG_FILE" ]]; then
+    LOG debug "Calling LoadConfigFile"
+    LoadConfigFile
+fi
+
+LOG debug "Calling SetColors()"
+SetColors
+
+### If sshfs binary is not installed
+LOG "Checking if sshf is installed or not 'command -v sshfs  &> /dev/null'"
+if ! command -v sshfs  &> /dev/null; then
+    LOG warn "'${GREEN}sshfs${NC}' is not Installed, install it first using your package manager"
+    LOG info "Installing sshfs"
+    LOG debug "Calling InstallTool()"
+    InstallTool "sshfs"
+fi
+
+LOG debug "[[ \$USE_SUDO -eq 1 ]]"
+if [[ $USE_SUDO -eq 1 ]]; then
+    LOG debug "SUDO=sudo "
+    SUDO="sudo "
+    LOG info "using sudo"
+else
+    LOG debug "unset SUDO"
+    unset SUDO
+fi
+
+# Handles forced unmounting if directory exists or --unmount is used
+if [[ -d "${CONFIG[DESTINATION]}" || $UNMOUNT -eq 1 ]]; then
+    AttemptUnMount && exit 0
+fi
+
+### Before mounting check if remote is alive and listening
+LOG debug "ping -c 1 -W ${CONFIG[NETWORK_TIMEOUT]} ${CONFIG[HOSTNAME]} &> /dev/null"
+ping -c 1 -W ${CONFIG[NETWORK_TIMEOUT]} ${CONFIG[HOSTNAME]} &> /dev/null || {
+    LOG error "'${LITTLE_BLUE}${CONFIG[HOSTNAME]}${NC}' Not reachable, check the connection."
+    FATAL "Exiting..." 1
+}
+
+### Create destination directory
+LOG debug "Checking [[ ! -d \${CONFIG[DESTINATION]} ]]"
+if [[ ! -d "${CONFIG[DESTINATION]}" ]]; then
+    LOG debug "${SUDO}mkdir -p ${CONFIG[DESTINATION]} &> /dev/null"
+    ${SUDO}mkdir -p "${CONFIG[DESTINATION]}" &> /dev/null || {
+        LOG error "Cannot create '${LITTLE_BLUE}${CONFIG[DESTINATION]}${NC}'"
+        FATAL "Exiting..." 1
+    }
+    LOG debug "${SUDO}chmod ${CONFIG[DESTINATION_DIRECTORY_PERMISSIONS]} ${CONFIG[DESTINATION]}"
+    ${SUDO}chmod "${CONFIG[DESTINATION_DIRECTORY_PERMISSIONS]}" "${CONFIG[DESTINATION]}" || {
+        LOG error "Cannot change permissions on '${LITTLE_BLUE}${CONFIG[DESTINATION]}${NC}'"
+    }
+fi
+
+LOG debug "Calling DrawBanner()"
+DrawBanner
+
+# An Array to hold options and flags for final SSHFS
+declare -a SSHFS_CMD+=()
+
+### Mount the remote or local device filesystem as a fuse.sshfs device using openssh protocal
+[[ -n ${CONFIG[PRIVATE_KEY]} ]] && [[ -r "${CONFIG[PRIVATE_KEY]}" ]] && {
+    SSHFS_CMD+=("-o" "IdentitiesOnly=yes" "-o" "IdentityFile=${CONFIG[PRIVATE_KEY]}")
+}
+[[ -n "${CONFIG[SSH_OPTIONS]}" ]] && SSHFS_CMD+=("-o" "${CONFIG[SSH_OPTIONS]}")
+
+SSHFS_CMD+=("-o" "ssh_command=ssh -p ${CONFIG[PORT]:-22}")
+SSHFS_CMD+=("${CONFIG[USERNAME]:-"root"}@${CONFIG[HOSTNAME]}:${CONFIG[SOURCE]:-"/"}")
+SSHFS_CMD+=("${CONFIG[DESTINATION]:-"/tmp/DEFAULT_MOUNT"}")
+
+## Mount SSHFS
+if AttemptMount; then
+    LOG info "Mounted $(mount | grep "${CONFIG[DESTINATION]}")" | grep --color=always -E "${CONFIG[USERNAME]}|${CONFIG[HOSTNAME]}"
+    [[ ${CONFIG[MOUNT_TIMEOUT]} -ne 0 ]] && {
+        LOG debug "(sleep ${CONFIG[MOUNT_TIMEOUT]} && ${SUDO}timeout --signal KILL 4 fusermount -u ${CONFIG[DESTINATION]}) &"
+        (sleep ${CONFIG[MOUNT_TIMEOUT]} && ${SUDO}timeout --signal KILL 4 fusermount -u "${CONFIG[DESTINATION]}") &
+    }
+    [[ ${CONFIG[USERNAME]} == u0_a* ]] && TermuxUser
+else
+    LOG error \
+        "Failed to mount SSHFS remote:\
+ ${SKIN_COL}${CONFIG[USERNAME]}${NC}@${ORANGE}${CONFIG[HOSTNAME]}${NC}:${LITTLE_BLUE}${CONFIG[SOURCE]}${NC}\
+ ${LITTLE_BLUE}${CONFIG[DESTINATION]}${NC} on Port ${CONFIG[PORT]}"
+
+    LOG debug "Calling AttemptUnMount()"
+    AttemptUnMount
+    FATAL "Exiting..." 1
+fi
+
+### Log the final messages
+LOG debug "Calling ShowConfigFile()"
+ShowConfigFile
+

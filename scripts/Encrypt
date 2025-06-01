@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+
+# Script takes number of arguments as files and directories and some must important flags
+# Each files and directory given as parameter converted into tarball and Encrypted using gpg
+
+# Empty variables will be used later
+declare -a ARGUMENTS=("$@")
+declare -a D_AND_F_ARRAY=()
+OUTPUT_FILE=""
+COMPRESSION_LEVEL="-4"
+TARBALL=""
+COMPRESSED_TARBALL=""
+MAKE_TAR=1
+TAR_EXISTS=0
+COMPRESS=0
+
+DEBUG=0
+
+# Some nice colors
+RED="\033[38;2;244;0;0m"
+GREEN="\033[38;2;0;244;0m"
+NC="\033[0m"
+HL="\033[1m"
+
+
+# [ "$DEBUG" -eq 1 ] && set -euxo
+[[ "$DEBUG" -eq 1 ]] && set -x
+
+# Debug function
+function DEBUG_ECHO() {
+    if [[ "$DEBUG" -eq 1 ]]; then
+        echo -e "$1"
+    fi
+}
+
+# INFO Messages
+function INFO() {
+    echo -e "[${HL}${GREEN}INFO${NC}]: $1"
+}
+
+# RED Errors
+function ERROR() {
+    echo -e "[${HL}${RED}ERROR${NC}]: $1"
+    exit 1
+}
+
+# Throw usage at console
+function Usage() {
+    echo -e "[${HL}${GREEN}INFO${NC}]: Usage: $(basename $0) --file [OUTPUT_NAME] [FILE/DIRECTORY]..."
+    echo -e ""
+    echo -e "Useful flags"
+    echo -e ""
+    echo -e "   -f, --file         Output file name"
+    echo -e "   -z, --compress     Compress file using xz"
+    echo -e "   -[0-9]             Compressiong level (only if --compress flag is given)"
+    printf  "                      "
+    echo                           -{0..9}
+    echo -e ""
+}
+
+# Create the tar ball archieve from Files/Dirs
+function MakeTar() {
+    if [[ -n "${OUTPUT_FILE}" && "${#D_AND_F_ARRAY[@]}" -gt 0 ]]; then
+        DEBUG_ECHO "CMD: tar --create --file="${OUTPUT_FILE}.tar" ${D_AND_F_ARRAY[@]}"
+        tar --create --file="${OUTPUT_FILE}.tar" "${D_AND_F_ARRAY[@]}"
+        if [[ $? -eq 0 ]]; then
+            TAR_EXISTS=1
+            TARBALL="${OUTPUT_FILE}.tar"
+            INFO "Tarball created successfully!"
+        else
+            ERROR "Tar creation failed!"
+        fi
+    else
+        DEBUG_ECHO "OUTPUT_FILE: '${OUTPUT_FILE}'"
+        DEBUG_ECHO "DIRECTORY_AND_FILE_ARRAY: '${D_AND_F_ARRAY[@]}'"
+        ERROR "No output file and elements to add"
+    fi
+}
+
+# Compress Tarball
+function CompressTARBALL() {
+    DEBUG_ECHO "CMD: xz --verbose --compress $COMPRESSION_LEVEL ${TARBALL} 2> /dev/null"
+    xz --verbose --compress $COMPRESSION_LEVEL "${TARBALL}" 2> /dev/null
+    if [[ $? -eq 0 ]]; then
+        COMPRESSED_TARBALL="${TARBALL}.xz"
+        INFO "Compressed tarball '${TARBALL}.xz'"
+    else
+        ERROR "Compression failed"
+    fi
+}
+
+# Encrypt the given file
+function EncryptFile() {
+    local FILE="$1"
+    if [[ -n "${FILE}" ]]; then
+        INFO "Encrypting ..."
+        DEBUG_ECHO "CMD: gpg -yes --pinentry-mode loopback --symmetric --cipher-algo AES256 ${FILE}"
+        gpg --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 "${FILE}" 2> /dev/null
+        if [[ $? -eq 0 ]]; then
+            DEBUG_ECHO "CMD: rm -rf "${FILE}""
+            rm -rf "${FILE}"
+            INFO "File encrypted to '${FILE}.gpg'"
+        else
+            ERROR "Encryption failed for '${FILE}'"
+        fi
+    else
+        ERROR "No file was given"
+    fi
+}
+
+# Check if argument is valid file or directory and not the output file
+function CheckArg() {
+    local PART="$1"
+    DEBUG_ECHO "Got: $PART"
+    if [[ ( -d "$PART" || -f "$PART" ) && ! "$PART" =~ *.gpg$ &&  "$PART" != "${OUTPUT_FILE}" ]]; then
+        D_AND_F_ARRAY+=("${PART}")
+        DEBUG_ECHO "Updated D_AND_F_ARRAY='${D_AND_F_ARRAY[@]}'\n"
+    fi
+}
+
+function SetOutput() {
+    local OUTPUT_="$1"
+    DEBUG_ECHO "Got the output name: ${OUTPUT_}"
+    if [[ ! -e "${OUTPUT_}" ]]; then
+        DEBUG_ECHO "Set OUTPUT_FILE='${OUTPUT_}'"
+        OUTPUT_FILE="${OUTPUT_}"
+    else
+        ERROR "Output already exits '${OUTPUT_}'"
+    fi
+}
+
+DEBUG_ECHO "[${HL}${GREEN}INFO${NC}]: DEBUGGING enabled"
+
+# Exit with no flags given
+if [[ $# -eq 0 ]]; then
+    Usage
+    exit 1
+fi
+
+# Parse the command line arguments
+for (( i=0 ; i < ${#ARGUMENTS[@]} ; i++ ));do
+    arg="${ARGUMENTS[$i]}"
+    DEBUG_ECHO "Current arg: $arg"
+    if [[ $arg != -* ]]; then
+        CheckArg "$arg"
+    else
+        case "$arg" in
+            -o|--output|-f|--file)
+                OUTPUT_F="${ARGUMENTS[$((i+1))]}"
+                if [[ -n "$OUTPUT_F" ]]; then
+                    SetOutput "$OUTPUT_F"
+                    DEBUG_ECHO "Skipped '$OUTPUT_F'"
+                    i=$((i+1))
+                else
+                    ERROR "No output file was given after '$arg'"
+                fi
+                ;;
+            -z|--compress)
+                COMPRESS=1
+                ;;
+            -h|--help)
+                Usage
+                exit 0
+                ;;
+            -[0-9])
+                    COMPRESSION_LEVEL="${ARGUMENTS[$i]}"
+                ;;
+            *)
+                ERROR "Invalid argument '$arg'"
+                ;;
+        esac
+    fi
+done
+
+# Exit if no output is specified
+if [[ -z "${OUTPUT_FILE}" ]]; then
+    ERROR "No output file name was given"
+fi
+
+# Create the tar ball
+if [[ "$MAKE_TAR" -eq 1 ]]; then
+    MakeTar
+fi
+
+# Compress if suitable flag are given
+if [[ "$COMPRESS" -eq 1 ]] && [[ "$TAR_EXISTS" -eq 1 ]]; then
+    CompressTARBALL
+fi
+
+# Finally Encrypt the data
+if [[ "$TAR_EXISTS" -eq 1 ]]; then
+    if [[ "$COMPRESS" -eq 1 ]]; then
+        EncryptFile "${COMPRESSED_TARBALL}"
+    else
+        EncryptFile "${TARBALL}"
+    fi
+fi
+
