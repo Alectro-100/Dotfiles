@@ -1,0 +1,58 @@
+#!/bin/bash
+
+SCRIPT_PATH="$(realpath "$0")"
+CURRENT_PID=$$
+
+pgrep -f "${SCRIPT_PATH}" | grep -v "^${CURRENT_PID}\$" | xargs -r kill
+
+MPV_SOCKET="/tmp/mpv_socket"
+isPlaying=0
+title=""
+artist=""
+album=""
+combined=""
+
+function CheckPlay() {
+    PLAYERS=($(playerctl --list-all | tr '\n' ' '))
+    for player in "${PLAYERS[@]:-""}"; do
+        status_="$(playerctl --player="${player}" status 2>/dev/null)"
+        if [[ "${status_}" == "Playing" ]]; then
+
+            title="$(playerctl --player="${player}" metadata title)"
+            artist="$(playerctl --player="${player}" metadata artist)"
+            album="$(playerctl --player="${player}" metadata album)"
+
+            if [[ -n "${artist}" ]]; then
+                combined="${artist} - ${title}"
+            else
+                combined="${title}"
+            fi
+
+            [[ -n "${album}" ]] && combined="${combined} (${album})"
+
+            combined="$(echo "$combined" | sed \
+                -e 's/\\/\\\\/g' \
+                -e 's/"/\\"/g' \
+                -e 's/\t/\\t/g' \
+                -e 's/\r/\\r/g' \
+                -e 's/\n/\\n/g' \
+                -e 's/\f/\\f/g')"
+
+            echo "You are playing: ${combined}"
+            echo "{\"text\": \"${combined}\", \"class\": \"active\"}" | socat - UNIX-CONNECT:"${MPV_SOCKET}"
+            isPlaying=1
+            break
+        else
+            isPlaying=0
+        fi
+    done
+}
+
+while true; do
+    CheckPlay
+    [[ $isPlaying -eq 0 ]] && {
+        echo '{"text": "", "class": "inactive"}' | socat - UNIX-CONNECT:"${MPV_SOCKET}"
+    }
+    sleep 0.5
+done
+

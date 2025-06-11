@@ -1,0 +1,29 @@
+#!/bin/bash
+
+test $# -eq 0 && {
+    echo "No command or file was given"
+    exit 1
+}
+
+time="0.8"
+ARG=""
+
+for arg in $@; do
+    if [[ "${arg}" == -* ]]; then
+        case "$arg" in
+            -ex|-e|-x|--ex|--exec)
+                shift; ARG="$1"; shift
+                ;;
+            -t|--time)
+                shift; time="$1"; shift
+                ;;
+        esac
+    fi
+done
+
+while (true); do
+    clear
+    bash -c "$ARG"
+    sleep "$time"
+done
+

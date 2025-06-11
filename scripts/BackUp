@@ -1,0 +1,341 @@
+#!/bin/bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+# ASCII colors
+GREEN="\033[38;2;100;255;40m"
+YELLOW="\033[38;2;255;190;65m"
+BLUE="\033[38;2;100;100;240m"
+RED="\033[38;2;255;10;10m"
+NC="\033[0m"
+HL="\033[1m"
+
+# An array to hold all the given flags
+FLAGS_ARRAY=("$@")
+
+# Your git local dotfile repository
+GIT_DIR="${HOME}/DEV/Dotfiles"
+
+# Github username and dotfile repository
+USERNAME="Alectro-100"
+REPO_NAME="Dotfiles"
+
+# command in use to copy stuff
+SYNC_="rsync"
+
+# 1 for git status 0 for no git status
+GIT_STATUS=0
+
+# LOG=0 ERROR=1 INFO=2 DEBUG=3
+LOG_LEVEL=1
+
+# Toggle push or pull
+SHOULD_PUSH=0
+SHOULD_CLONE=0
+
+# string '--force'
+FORCE=""
+
+# Temporary variable
+CLONE_DIR=""
+MSG=""
+
+### File to file Copy
+declare -A FILES_TO_COPY=(
+    ["/etc/vimrc"]="${GIT_DIR}/vim/vimrc"
+    ["/etc/xdg/nvim/sysinit.vim"]="${GIT_DIR}/neovim/init.vim"
+    ["${HOME}/.SHELL_RC"]="${GIT_DIR}/shell/SHELL_RC"
+    ["${HOME}/.bashrc"]="${GIT_DIR}/shell/bashrc"
+    ["${HOME}/.config/foot/foot.ini"]="${GIT_DIR}/foot/foot.ini"
+    ["${HOME}/.config/alacritty/alacritty.toml"]="${GIT_DIR}/alacritty/alacritty.toml"
+)
+
+### Directory to Directory Copy
+declare -A DIRS_TO_COPY=(
+    ["${HOME}/.config/hypr"]="${GIT_DIR}/hyprland"
+    ["${HOME}/.config/sway"]="${GIT_DIR}/sway"
+    ["${HOME}/.config/i3"]="${GIT_DIR}/i3"
+    ["${HOME}/.config/waybar"]="${GIT_DIR}/waybar"
+    ["${HOME}/.config/wofi"]="${GIT_DIR}/wofi"
+    ["${HOME}/.config/qutebrowser"]="${GIT_DIR}/qutebrowser"
+    ["${HOME}/.bin"]="${GIT_DIR}/scripts"
+)
+
+function ERROR() {
+    [[ $LOG_LEVEL -ge 1 ]] && {
+        echo -e "[${HL}${RED}ERROR${NC}]: $@"
+    } || {
+        return 0
+    }
+}
+
+function INFO() {
+    [[ $LOG_LEVEL -ge 2 ]] && {
+        echo -e "[${HL}${GREEN}INFO${NC}]: $@"
+    } || {
+        return 0
+    }
+}
+
+function DEBUG_LOG() {
+    [[ $LOG_LEVEL -ge 3 ]] && {
+        echo -e "[${HL}${YELLOW}DEBUG_LOG${NC}]: $@"
+    } || {
+        return 0
+    }
+}
+
+function CopyFiles() {
+    local SOURCE="$1"
+    local DEST="$2"
+
+    if [[ ! -f "${SOURCE}" ]]; then
+        ERROR "Source '${BLUE}${SOURCE}${NC}' file does not exist"
+        return 1
+    fi
+
+    mkdir --parents -- $(dirname "${DEST}")
+
+    if [[ $LOG_LEVEL -ge 2 ]]; then
+        if [[ "$SYNC_" == "rsync" ]]; then
+            $SYNC_ --progress --archive "${SOURCE}" "${DEST}" || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        else
+            $SYNC_ --verbose "${SOURCE}" "${DEST}" || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        fi
+    else
+        if [[ "$SYNC_" == "rsync" ]]; then
+            $SYNC_ --archive "${SOURCE}" "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        else
+            $SYNC_ "${SOURCE}" "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        fi
+    fi
+}
+
+function CopyDirs() {
+    local SOURCE="$1"
+    local DEST="$2"
+
+    if [[ ! -d "${SOURCE}" ]]; then
+        ERROR "Source '${BLUE}${SOURCE}${NC}' directory does not exist"
+        return 1
+    fi
+
+    mkdir --parents -- "${DEST}"
+
+    if [[ $LOG_LEVEL -ge 2 ]]; then
+        if [[ "$SYNC_" == "rsync" ]]; then
+            $SYNC_ --progress --archive "${SOURCE}/" "${DEST}/" || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        else
+            $SYNC_ --verbose --recursive "${SOURCE}"/* "${DEST}" || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        fi
+    else
+        if [[ "$SYNC_" == "rsync" ]]; then
+            $SYNC_ --archive "${SOURCE}/" "${DEST}/" 1> /dev/null 2>&1 || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        else
+            $SYNC_ --recursive "${SOURCE}"/* "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
+            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
+        fi
+    fi
+}
+
+function CloneRepo() {
+    local DIR="$1"
+
+    [[ -z "${USERNAME}" && -z "${REPO_NAME}" ]] && {
+        ERROR "No github username or repo name is given"
+        exit 1
+    }
+
+    if [[ -z "${DIR}" ]]; then
+        INFO "No directory given. Using your current directory to clone"
+        DIR="$(realpath .)/${REPO_NAME}"
+    else
+        DIR="$(realpath $1)/${REPO_NAME}"
+    fi
+
+    DEBUG_LOG "Getting dotfile repo from github"
+    INFO "Cloning your repository at: $DIR"
+    git clone "https://github.com/${USERNAME}/${REPO_NAME}.git" "${DIR}" && \
+        INFO "Repository clone at '${BLUE}${DIR}${NC}'"
+}
+
+function PushRepo() {
+    local COMMIT_MSG=""
+    local SATISFIED=""
+    local SHOULD_CONTINUE=""
+
+    [[ -z "${USERNAME}" ]] && {
+        ERROR "No github username given"
+    }
+    [[ -z "${REPO_NAME}" ]] && {
+        ERROR "No github repository name given"
+    }
+
+    cd "${GIT_DIR}"
+
+    if git diff --quiet && git --no-pager diff --quiet --staged; then
+        INFO "Pushing changes to git@github.com:${USERNAME}/${REPO_NAME}.git"
+        git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${FORCE} && \
+            INFO "Successfully pushed your changes to github repository"
+    else
+        INFO "Launching git interactive git add"
+        git add -p || ERROR "Interactive staging failed"
+        if [[ -z "${MSG}" ]]; then
+            echo -en "Your commit message: "
+            read -r COMMIT_MSG
+            [[ -z "${COMMIT_MSG}" ]] && {
+                ERROR "Empty commit message."
+                exit 1
+            }
+        else
+            COMMIT_MSG="${MSG}"
+        fi
+        INFO "Summary of staged changes"
+        git diff --staged --stat
+        echo -en "Are you saisfied with changes? (y|n): "
+        read -r SATISFIED
+        if [[ "${SATISFIED}" =~ ^(y|yes|Yes)$ || "${SATISFIED}" == "" ]]; then
+            git commit -m "${COMMIT_MSG}" && INFO "Successfully commited the changes"
+        else
+            INFO "Commit aborted"
+            echo -en "Continue?: "
+            read -r SHOULD_CONTINUE
+            [[ "${SHOULD_CONTINUE}" =~ ^(y|yes|Yes)$ ]] || {
+                exit 1
+            }
+        fi
+        INFO "Pushing changes to git@github.com:${USERNAME}/${REPO_NAME}.git"
+        git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${FORCE} && \
+            INFO "Successfully pushed your changes to github repository"
+    fi
+}
+
+function Cleanup() {
+    ERROR "${RED}Sync interrupted. Clean up manually.${NC}" && exit 1
+}
+
+trap Cleanup SIGINT SIGTERM
+
+for (( i=0 ; i < ${#FLAGS_ARRAY[@]} ; i++ )); do
+    arg="${FLAGS_ARRAY[$i]}"
+    if [[ "$arg" == -* ]]; then
+        case "$arg" in
+            -v|--verbose|--progress)
+                LOG_LEVEL=1
+                DEBUG_LOG "Verbose is set"
+                ;;
+            -l=*|--log=*|--loglevel=*)
+                LOG_LEVEL=${arg#*=}
+                if [[ -z ${LOG_LEVEL} || ${LOG_LEVEL} == -* ]] || [[ ! ${LOG_LEVEL} =~ ^[0-9]+$ ]]; then
+                    LOG_LEVEL=1
+                elif [[ $LOG_LEVEL -gt 3 ]]; then
+                    DEBUG_LOG "LOG_LEVEL has no effect over integer ${LOG_LEVEL}"
+                fi
+                [[ $LOG_LEVEL -ge 3 ]] && DEBUG_LOG "Debugging enabled"
+                ;;
+            -l|--log|--loglevel)
+                LOG_LEVEL=${FLAGS_ARRAY[$(( i + 1 ))]:-1}
+
+                if [[ -z ${LOG_LEVEL} || ${LOG_LEVEL} == -* ]]; then
+                    LOG_LEVEL=1
+                elif [[ $LOG_LEVEL -gt 3 ]]; then
+                    DEBUG_LOG "LOG_LEVEL has no effect over integer ${LOG_LEVEL}"
+                fi
+                [[ $LOG_LEVEL -ge 3 ]] && DEBUG_LOG "Debugging enabled"
+                i=$(( i + 1 ))
+                ;;
+            -d|-db|--db|--deb|--debug)
+                LOG_LEVEL=2
+                DEBUG_LOG "Debugging enabled"
+                ;;
+            -g|-gs|--gs|--status|--git-status)
+                GIT_STATUS=1
+                DEBUG_LOG "GIT_STATUS is set"
+                ;;
+            -c|--clone|--clone-local)
+                CLONE_DIR="${FLAGS_ARRAY[$(( i + 1 ))]}"
+                [[ -n "${CLONE_DIR}" ]] && {
+                    i=$(( i + 1 ))
+                }
+                SHOULD_CLONE=1
+                ;;
+            -m|-msg|--msg)
+                MSG="${FLAGS_ARRAY[$(( i + 1 ))]}"
+                [[ -n "${MSG}" ]] && {
+                    i=$(( i + 1 ))
+                }
+                SHOULD_CLONE=1
+                ;;
+            -p|--push)
+                SHOULD_PUSH=1
+                DEBUG_LOG "Backup will be pushed to github"
+                ;;
+            --force)
+                FORCE="--force"
+                DEBUG_LOG "Forcing push"
+                ;;
+            *)
+                ERROR "Invalid flag: $arg"
+                ;;
+        esac
+    fi
+done
+
+
+if [[ "${SHOULD_CLONE}" -eq 1 ]]; then
+    CloneRepo "${CLONE_DIR}"
+    exit 0
+fi
+
+if command -v rsync 1> /dev/null 2>&1; then
+    SYNC_="rsync"
+    [[ $? -ne 0 ]] && ERROR "'rsync' not found. Falling back to 'cp'."
+elif command -v cp 1> /dev/null 2>&1; then
+    SYNC_="cp"
+fi
+
+# Why local dotfile directory doesn't exist
+if [[ ! -d "${GIT_DIR}" ]]; then
+    INFO "${GIT_DIR} doesn't exist"
+    mkdir --parents "${GIT_DIR}" && {
+        INFO "Created ${GIT_DIR}"
+    } || {
+        ERROR "Cannot create '${BLUE}${GIT_DIR}${NC}'"
+        exit 1
+    }
+fi
+
+DEBUG_LOG "Using GIT_DIR=$GIT_DIR"
+DEBUG_LOG "Using GIT_STATUS=$GIT_STATUS"
+DEBUG_LOG "Using LOG_LEVEL=$LOG_LEVEL"
+DEBUG_LOG "Using SYNC_=$SYNC_"
+
+echo && INFO "Dotfile directory: ${BLUE}${GIT_DIR}${NC}\n"
+
+# Start copying all the files to the destination
+for src in "${!FILES_TO_COPY[@]}"; do
+    CopyFiles "${src}" "${FILES_TO_COPY[$src]}"
+done
+
+# Start copying directory content to the the destination
+for src in "${!DIRS_TO_COPY[@]}"; do
+    CopyDirs "${src}" "${DIRS_TO_COPY[$src]}"
+done
+
+if [[ ${GIT_STATUS} -eq 1 ]]; then
+    cd ${GIT_DIR}
+    git status
+fi
+
+[[ $SHOULD_PUSH -eq 1 ]] && {
+    PushRepo
+}
+

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+blue="\033[38;2;147;122;255m"
+dark_blue="\033[38;2;40;0;255m"
+sky="\033[38;2;73;211;190m"
+cream="\033[38;2;198;211;154m"
+green="\033[38;2;25;229;93m"
+orange="\033[38;2;255;80;0m"
+highlt="\033[1m"
+no="\033[0m"
+
+sudo -v
+
+echo -e "${dark_blue}${highlt}System${no}:"
+echo -e "  ${blue}Host${no}:                                $(cat /etc/hostname) ${blue}kernel version${no}: $(uname -r)"
+echo -e "  ${blue}Product${no}:                             $(sudo dmidecode --string=system-product-name)"
+echo -e "  ${blue}Type${no}:                                $(sudo dmidecode --string=chassis-type)"
+echo -e "  ${blue}Serial Number${no}:                       $(sudo dmidecode --string=system-serial-number)"
+echo -e "  ${blue}MotherBoard Serial Number${no}:           $(sudo dmidecode --string=baseboard-serial-number)"
+echo -e "  ${blue}System Manufacturer${no}:                 $(sudo dmidecode --string=system-manufacturer)"
+echo -e "  ${blue}BIOS version${no}:                        $(sudo dmidecode --string=bios-version)"
+echo -e "  ${blue}BIOS release date${no}:                   $(sudo dmidecode --string=bios-release-date)"
+echo -e "  ${blue}BIOS vendor${no}:                         $(sudo dmidecode --string=bios-vendor)"
+echo
+echo -e "${dark_blue}${highlt}CPU${no}:"
+echo -e "  ${blue}Processor${no}:                           $(sudo dmidecode --string=processor-version)${blue}"
+echo -e "  ${blue}Family${no}:                              $(sudo dmidecode --string=processor-family)"
+echo -e "  ${blue}ProcessorManufacturer${no}:               $(sudo dmidecode --string=processor-manufacturer)"

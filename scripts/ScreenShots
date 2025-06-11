@@ -1,0 +1,18 @@
+#!/bin/bash
+
+ScreenShots="$HOME/Pictures/GRIM_SCREENSHOTS"
+
+if [[ -d "$ScreenShots" ]]; then
+    cd "$ScreenShots"
+
+    if command -v imv 1> /dev/null 2>&1 ; then
+        imv * &
+        disown
+    else
+        feh * &
+        disown
+    fi
+else
+    exit 1
+fi
+

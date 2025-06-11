@@ -1,0 +1,34 @@
+#!/bin/bash
+
+flags="$@"
+SESSION_FILE="/tmp/.BW_SESSION"
+SECRET_FILE="$(mktemp -t FILE.XXXXXX)"
+
+function Unlock() {
+    BW_SESSION=$(bw unlock | grep "export BW_SESSION" | cut -d'"' -f '2')
+    echo "$BW_SESSION" > "${SESSION_FILE}"
+}
+
+function List() {
+    if [[ ! -s "${SESSION_FILE}" ]]; then
+        Unlock
+    else
+        bw list items --session $(cat "${SESSION_FILE}") | \
+            jq '.[] | {name: .name, id: .id, username: .login.username, password: .login.password}' > "${SECRET_FILE}"
+        echo -e "\n\n # vim:filetype=json5" >> "${SECRET_FILE}"
+        vim "${SECRET_FILE}"
+        rm "${SECRET_FILE}"
+    fi
+}
+
+for flag in $flags; do
+    case "${flag}" in
+        unlock)
+            Unlock
+            ;;
+        list)
+            List
+            ;;
+    esac
+done
+

@@ -1,0 +1,106 @@
+#!/usr/bin/bash
+
+ARGUMENTS=("$@")
+
+RED="\033[38;2;244;10;10m"
+GREEN="\033[38;2;80;250;100m"
+BROWN="\033[38;2;240;120;120m"
+LIGHT_SKIN="\033[38;2;255;230;180m"
+GREY="\033[38;2;160;160;140m"
+BLUE="\033[38;2;150;134;255m"
+NC="\033[0m"
+
+MUSIC_DIRECTORY='$HOME/Music'
+MUSIC_DIR="$(eval echo ${MUSIC_DIRECTORY})"
+# MPV_SOCKET="/tmp/mpv_socket"
+CURRENTLY_PLAYING=""
+video=""
+
+# function cleanup() {
+#     echo '{"text": "", "class": "inactive"}"' | socat - UNIX-CONNECT:${MPV_SOCKET}
+# }
+
+function LOG() {
+    local type_="$1"
+    shift
+    local color=""
+    case "${type_}" in
+        info)
+            color="${GREEN}"
+            echo -e "[${color}INFO${NC}]: $@"
+            ;;
+        error)
+            color="${RED}"
+            echo -e "[${color}ERROR${NC}]: $@"
+            ;;
+    esac
+}
+
+function PlayMusic() {
+    CURRENTLY_PLAYING="$( basename "${MUSIC_DIRECTORY}/${SELECTED}" )"
+    LOG info "${GREY}MUSIC${NC}: ${GREEN}${CURRENTLY_PLAYING%.*}${NC}"
+    LOG info "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} \"${LIGHT_SKIN}${MUSIC_DIRECTORY}/${SELECTED}${NC}\"\n"
+    # echo "{\"text\": \"🎵 ${CURRENTLY_PLAYING%.*}\", \"class\":\"active\"}" | socat - UNIX-CONNECT:${MPV_SOCKET}
+    mpv ${mpv_flags[@]} "${MUSIC_DIR}/${SELECTED}"
+}
+
+function Play() {
+    if [[ -f "${MUSIC_DIR}/${SELECTED}" ]]; then
+        PlayMusic
+    else
+        LOG error "No such Music file: '${LIGHT_SKIN}${SELECTED}${NC}'"
+    fi
+}
+
+# trap cleanup EXIT INT SIGTERM
+
+for (( i=0 ; i < "${#ARGUMENTS[@]}" ; i++ )); do
+    arg="${ARGUMENTS[$i]}"
+    case "${arg}" in
+        vid|-vid|--vid|-video|--video)
+            video="auto"
+            ;;
+        vol|-vol|--vol|-volume|--volume)
+            volume=${ARGUMENTS[ $((i+1)) ]}
+            [[ -z ${volume} || ${volume} == -* ]] && {
+                LOG error "No argument give after ${GREY}--volume${NC}"
+                LOG info "Default volume: ${BLUE}65${NC}"
+                volume=65
+            }
+            i=$((i+1))
+            ;;
+        -vol=*|--vol=*|--volume=*)
+            if [[ "${arg#*=}" =~ ^[0-9]+$ ]]; then
+                volume=$(awk -F'=' '{print $2}' <<< "${arg}")
+            else
+                LOG error "Invalid volume: ${arg}"
+                LOG info "Default volume: ${BLUE}65${NC}"
+            fi
+            ;;
+    esac
+done
+
+[[ -d "${MUSIC_DIR}" ]] || {
+    LOG error "Music directory not found: '${BLUE}${MUSIC_DIR}${NC}'"
+    exit 1
+}
+
+SELECTED="$(find "${MUSIC_DIR}" \( -type f -iregex '.*\.\(mp3\|flac\|m4a\|wav\|aac\|ogg\|opus\|wma\|alac\|ape\|mpc\|wavpack\)' \) -printf "%P\n" | fzf)"
+
+[[ -z "${SELECTED}" ]] && {
+    LOG info "No song selected"
+    exit 1
+}
+
+mpv_flags+=(
+    "--loop-file=inf"
+    "--vid=${video:-"no"}"
+    "--volume=${volume:-65}"
+    "--script-opts=mpris=yes"
+    "--osc=no"
+    "--msg-level=ffmpeg/demuxer=error"
+)
+
+### Play music
+Play
+

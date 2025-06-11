@@ -1,0 +1,258 @@
+// -*- mode: jsonc -*-
+{
+    // "layer": "top", // Waybar at top layer
+    "position": "top", // Waybar position (top|bottom|left|right)
+    "height": 10, // Waybar height (to be removed for auto height)
+    "width": 1910, // Waybar width
+    "spacing": 2, // Gaps between modules (4px)
+    // Choose the order of the modules
+    "modules-left": [
+        // "custom/launcher",
+        // "hyprland/workspaces",
+        "cpu",
+        "custom/seperator",
+        "memory",
+        "custom/seperator",
+        "temperature",
+        "custom/seperator",
+        "custom/cava",
+        "custom/now_playing"
+    ],
+    "modules-center": [
+        "hyprland/workspaces"
+    ],
+    "modules-right": [
+        "pulseaudio",
+        "custom/seperator",
+        "network",
+        "custom/seperator",
+        "backlight",
+        "custom/seperator",
+        // "keyboard-state",
+        // "custom/seperator",
+        "hyprland/language",
+        "custom/seperator",
+        "battery",
+        "custom/seperator",
+        "clock",
+        "custom/seperator",
+        "tray",
+        "custom/seperator",
+        "custom/power"
+    ],
+
+    "custom/now_playing": {
+        "exec": "$HOME/.bin/UnixSocket",
+        "max-length": 60,
+        "return-type": "json",
+        "tooltip": true,
+        "tooltip-format": "{text}",
+        "format": "{}"
+    },
+    "custom/launcher": {
+        "on-click": "nwg-drawer -mb 200 -ml 400 -mr 450 -mt 200",
+        "tooltip":false,
+        "format": "  "
+    },
+    "custom/seperator": {
+        // "format": ""
+        "format": "|"
+    },
+
+    "hyprland/language": {
+        "on-click": "hyprctl switchxkblayout at-translated-set-2-keyboard next"
+    },
+
+    "hyprland/workspaces": {
+        "disable-scroll": true,
+        "all-outputs": true,
+        "warp-on-scroll": false,
+        "format": "{name}: {icon}",
+        "format-icons": {
+            "urgent": "",
+            "focused": "",
+            "default": "",
+            "active": ""
+        },
+        "sort-by-number": true,
+        "all-outputs": true,  // Show workspaces from all outputs
+        "active-only": false,  // Show all workspaces, not just active ones
+        "persistent-workspaces": {
+            "1": [],  // Always show workspace 1
+            "2": [],  // Always show workspace 2
+            "3": [],  // Always show workspace 3
+            "4": [],  // Always show workspace 4
+            // "5": [],  // Always show workspace 5
+            // "6": []   // Always show workspace 6
+        }
+    },
+
+    "custom/cava": {
+        "exec": "$HOME/.bin/waybar_cava 1",
+        "on-click":"pkill -SIGUSR1 -f waybar_cava",
+        "return-type": "json",
+        "format": "{}"
+    },
+
+    "keyboard-state": {
+        "numlock": true,
+        "capslock": true,
+        "format": {
+            "numlock": "Num {icon}",
+            "capslock": "Caps {icon}"
+        },
+        "format-icons": {
+            "unlocked": "",
+            "locked": " "
+        }
+    },
+
+    "mode": {
+        "format": "<span style=\"italic\">{}</span>"
+    },
+
+    "hyprland/scratchpad": {
+        "format": "{icon} {count}",
+        "show-empty": false,
+        "format-icons": ["", ""],
+        "tooltip": true,
+        "tooltip-format": "{app}: {title}"
+    },
+
+    "tray": {
+        "icon-size": 20,
+        "spacing": 10
+    },
+
+    "clock": {
+        "format-alt": "{:%A, %B %d, %Y (%I:%M %p)}  ",
+        "format": "{:%I:%M %p}   ",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>",
+        "calendar": {
+            "mode"          : "year",
+            "mode-mon-col"  : 3,
+            "weeks-pos"     : "right",
+            "on-scroll"     : 1,
+            "format": {
+                "months":     "<span color='#FFEAD3'><b>{}</b></span>",
+                "days":       "<span color='#CDAAEF'><b>{}</b></span>",
+                "weeks":      "<span color='#99FFDD'><b>W{}</b></span>",
+                "weekdays":   "<span color='#FFCC66'><b>{}</b></span>",
+                "today":      "<span color='#FF6699'><b><u>{}</u></b></span>"
+            }
+        },
+        "actions":  {
+            "on-click-right": "mode",
+            "on-scroll-up": "tz_up",
+            "on-scroll-down": "tz_down",
+            "on-scroll-up": "shift_up",
+            "on-scroll-down": "shift_down"
+        }
+    },
+
+    "cpu": {
+     "interval": 0.5,
+     "format": "   {icon0}{icon1}{icon2}{icon3}{icon4}{icon5}{icon6}{icon7} {usage:>2}%",
+     "format-icons": [
+          "<span color='#69ff94'>▁</span>", // green
+          "<span color='#2aa9ff'>▂</span>", // blue
+          "<span color='#f8f8f2'>▃</span>", // white
+          "<span color='#f8f8f2'>▄</span>", // white
+          "<span color='#ffffa5'>▅</span>", // yellow
+          "<span color='#ffffa5'>▆</span>", // yellow
+          "<span color='#ff9977'>▇</span>", // orange
+          "<span color='#dd532e'>█</span>"  // red
+    ],
+        "min-length": 5,
+        "on-click-right": "XDG_CURRENT_DESKTOP=KDE plasma-systemmonitor"
+    },
+
+    "memory": {
+        "interval": 1,
+        "format": "  {used:0.2f} G / {total:0.2f} G"
+    },
+
+    "temperature": {
+        "critical-threshold": 75,
+        "interval": 0.5,
+        "format-critical": "{temperatureC}°C {icon}",
+        "format": "{icon} {temperatureC}°C",
+        "format-icons": " "
+        // "thermal-zone": 2,
+        // "hwmon-path": "/sys/class/hwmon/hwmon2/temp1_input",
+    },
+
+    "backlight": {
+        // "device": "acpi_video1",
+        "format": "{percent}% {icon}",
+        "format-icons": ["", "", "", "", "", "", "", "", ""]
+    },
+
+    "battery": {
+        "states": {
+            "good": 96,
+            "warning": 40,
+            "critical": 24
+        },
+        "format": "{capacity}% {icon}  ",
+        "format-full": "{capacity}% {icon}  ",
+        "format-charging": "{capacity}%    ",
+        "format-plugged": "{capacity}%   ",
+        "format-alt": "{time} {icon} ",
+        // "format-good": "", // An empty format will hide the module
+        "format-icons": ["", "", "", "", ""]
+    },
+
+    "network": {
+        // "format-wifi": "{ifname}: {ipaddr}/{cidr}  {bandwidthDownBits}  {bandwidthUpBits}",
+        "format-wifi": "    {bandwidthDownBits}  {bandwidthUpBits}",
+        "format-alt": "  {essid} ({signalStrength}%)",
+        "tooltip-format": "{ifname} via {gwaddr} ",
+        "format-linked": "{ifname} (No IP) ",
+        "format-ethernet": "󰌘",
+        "format-disconnected": "󰌙",
+        "tooltip-format": "SSID: {essid}\nIP: {ipaddr}\nSpeed:  {bandwidthDownBits}  {bandwidthUpBits}\nStrength: {signalStrength}%",
+        "tooltip-format-ethernet": "{ifname} 󰌘",
+        "tooltip-format-disconnected": "󰌙 Disconnected",
+        "on-click-right": "foot -e bash -c 'nmcli device wifi list ; sleep 100'"
+    },
+
+    "pulseaudio": {
+        "scroll-step": 1, // %, can be a float
+        "format": "{volume}% {icon} {format_source}",
+        "format-bluetooth": "{volume}% {icon}  {format_source}",
+        "format-bluetooth-muted": " {icon} {format_source}",
+        "format-muted": " {format_source}",
+        "format-source": "{volume}% ",
+        "format-source-muted": " ",
+            "format-icons": {
+            "alsa_output.pci-0000_00_1f.3.analog-stereo": " ",
+            "alsa_output.pci-0000_00_1f.3.analog-stereo-muted": " ",
+            "headphone": " ",
+            "hands-free": " ",
+            "headset": "",
+            "phone": " ",
+            "phone-muted": " ",
+            "portable": " ",
+            "car": " ",
+            "default": [" ", " "]
+            },"on-click": "pavucontrol"
+
+    },
+
+    "custom/power": {
+        "format" : "   ",
+        "tooltip": false,
+        "menu": "on-click",
+        "on-click-right":"hyprctl reload",
+        "menu-file": "$HOME/.config/hypr/waybarconfig/scripts/power_menu.xml", // Menu file in resources folder
+        "menu-actions": {
+            "shutdown": "systemctl shutdown --now",
+            "reboot": "systemctl reboot --now",
+            "suspend": "systemctl suspend --now",
+            "hibernate": "systemctl hibernate --now"
+        }
+    }
+}
+
+// vim:filetype=json5

@@ -1,0 +1,194 @@
+#!/bin/bash
+
+# trap can't save your ass from SIGKILL
+trap Cleanup SIGTERM SIGINT
+
+ARGS=("$@")
+
+### Edit these vairables to their correct values
+
+### Journal directory (All your journal's will be here)
+JOURNAL_DIR="${HOME}/journalD"
+### tr TRANSFORM_KEY file
+TRANSFORM_KEY="${HOME}/._tr"
+### Any existing template you want
+TEMPLATE="${JOURNAL_DIR}/.template"
+### Line of text after and including from the template will be part of journal template
+JOURNAL_FILE="$(date +%d-%b-%Y_).md"
+### Holds temporary file
+TEMP_FILE=""
+EDIT_FILE=0
+EDIT_TEMPLATE=0
+
+RED="\033[38;2;159;29;75m"
+GREEN="\033[38;2;108;176;97m"
+LIGHT_GREEN="\033[38;2;115;202;97m"
+MUDDY="\033[38;2;181;191;121m"
+NC="\033[0m"
+
+function LOG() {
+    type_="$1"
+    shift
+    case "$type_" in
+        error)
+            printf "%b\n" "[${RED}ERROR${NC}]: $@"
+            ;;
+        info)
+            printf "%b\n" "[${GREEN}INFO${NC}]: $@"
+            ;;
+    esac
+}
+
+function CreateNewKey() {
+    local -r NEW_KEY="$(printf "%s -> %s\n" "$(echo {{A..Z},{a..z}} | tr ' ' '\n' | shuf | tr -d '\n' )" "$(echo {{A..Z},{a..z}} | tr -d ' ')")"
+    if [[ -n "$NEW_KEY" ]]; then
+        echo "$NEW_KEY" > "${TRANSFORM_KEY}" && \
+            LOG info "New key generated: $NEW_KEY"
+    else
+        LOG error "Failed to create new key"
+    fi
+}
+
+function EncodeTextFile() {
+    local FILE1="$1" # Plain text file (no substitution cipher)
+    local FILE2="$2" # The journal file
+    # fill FILE2 from readable text ==> Gibrish
+    LOG info "Applying Substitution cipher '${MUDDY}${FILE1}${NC}' ==> '${LIGHT_GREEN}${FILE2}${NC}'"
+    tr 'A-Za-z' "${TRANSFORM_KEY}" < "${FILE1}" > "${FILE2}"
+}
+
+function DecodeTextFile() {
+    local FILE1="$1" # substitution cipher encoded file
+    local FILE2="$2" # Temporary file
+    # Fill FILE2 from Gibrish ==> readable text
+    LOG info "Reverting Substitution cipher '${LIGHT_GREEN}${FILE1}${NC}' ==> '${MUDDY}${FILE2}${NC}'"
+    tr "${TRANSFORM_KEY}" 'A-Za-z' < "${FILE1}" > "${FILE2}"
+}
+
+function Cleanup() {
+    EncodeTextFile "$TEMP_FILE" "${JOURNAL_DIR}/${JOURNAL_FILE}" && rm -rf "$TEMP_FILE" && \
+        LOG info "Temporary file cleaned '${MUDDY}${TEMP_FILE}${NC}'"
+}
+
+function ShowJournal() {
+    [[ -s ${TRANSFORM_KEY} ]] && local -r KEY="$(cat ${TRANSFORM_KEY} | cut -d' ' -f1)" || \
+        local -r KEY="${TRANSFORM_KEY}"
+    [[ -n $KEY ]] && {
+        LOG info "From file: ${JOURNAL_DIR}/${JOURNAL_FILE}"
+        command -v bat &> /dev/null && {
+            bat --language=md --paging=never --decorations=never --color=always \
+                <(tr "$KEY" 'A-Za-z' < "${JOURNAL_DIR}/${JOURNAL_FILE}")
+            return 0
+        }
+        tr "$KEY" 'A-Za-z' < "${JOURNAL_DIR}/${JOURNAL_FILE}"
+    }
+}
+
+function EditTemplate() {
+    export EDITOR
+    local BACKUP="${TEMPLATE}_$(date +%s).bak"
+    LOG info "Copying last changes: ${LIGHT_GREEN}${TEMPLATE}${NC} ==> ${LIGHT_GREEN}${BACKUP}${NC}"
+    cp "${TEMPLATE}" "${BACKUP}"
+    LOG info "Editing template: ${LIGHT_GREEN}${TEMPLATE}${NC}"
+    "${EDITOR:-"vim"}" "${TEMPLATE}"
+}
+
+function WriteJournal() {
+    ### If file doesn't exist and empty, create the file and provide a default template
+
+    ### Create a temporary file
+    TEMP_FILE="$(mktemp ${JOURNAL_DIR}/.${JOURNAL_FILE}.XXXXXX.tmp)"
+    local Editor="$1"
+
+    if [[ -n $Editor ]]; then
+        command -v "$Editor" &> /dev/null || {
+            LOG info "Editor '${Editor^}' not found faling back to vim"
+            Editor="vim"
+        }
+    else
+        LOG error "No editor given."
+        return 0
+    fi
+
+    [[ -s ${TEMPLATE} ]] || {
+        echo "Template here" > "${TEMPLATE}"
+    }
+
+    if [[ ! -s "${JOURNAL_DIR}/${JOURNAL_FILE}" ]]; then
+        ### Fill the Journal with a template
+        EncodeTextFile "${TEMPLATE}" "${JOURNAL_DIR}/${JOURNAL_FILE}"
+    fi
+
+    LOG info "Editor Initialized: ${Editor^}"
+    if [[ "$Editor" == "vim" ]]; then
+        DecodeTextFile "${JOURNAL_DIR}/${JOURNAL_FILE}" "$TEMP_FILE"
+        LOG info "Editing temporary file '${LIGHT_GREEN}$TEMP_FILE${NC}'"
+        sleep 0.01; vim -c 'colorscheme slate' "$TEMP_FILE"
+        Cleanup
+    else
+        DecodeTextFile "${JOURNAL_DIR}/${JOURNAL_FILE}" "$TEMP_FILE"
+        LOG info "Editing temporary file '${LIGHT_GREEN}$TEMP_FILE${NC}'"
+        sleep 0.01; "${Editor:-"vim"}" "$TEMP_FILE"
+        Cleanup
+    fi
+}
+
+if [[ ! -s "${TRANSFORM_KEY}" ]]; then
+    CreateNewKey
+else
+    [[ -s ${TRANSFORM_KEY} ]] && TRANSFORM_KEY="$(cat ${TRANSFORM_KEY} | cut -d' ' -f1)"
+fi
+
+if [[ ! -d "${JOURNAL_DIR}" ]]; then
+    LOG error "Path '"${JOURNAL_DIR}"' doesnt' exist"
+    mkdir -p "${JOURNAL_DIR}" && {
+        LOG info "Created new journal directory: '${JOURNAL_DIR}'"
+    } || {
+        LOG error "Failed to create directory: '${JOURNAL_DIR}'"
+    }
+fi
+
+### Parse arguments
+for arg in "${ARGS[@]}"; do
+    case "$arg" in
+        -s|--show|--view)
+            ShowJournal
+            LOG info "Process completed, exiting..."
+            exit 0
+            ;;
+        -r|--review)
+            exit 0
+            ;;
+        -e|--edit)
+            EDIT_FILE=1
+            ;;
+        -t|--template)
+            EDIT_TEMPLATE=1
+            ;;
+        vim|nvim|micro|nano)
+            WriteJournal "$arg"
+            LOG info "Process completed, exiting..."
+            exit 0
+            ;;
+    esac
+done
+
+[[ $EDIT_FILE -eq 1 && $EDIT_TEMPLATE -eq 1 ]] && {
+    EditTemplate
+    LOG info "Process completed, exiting..."
+    exit 0
+}
+
+[[ $EDIT_FILE -eq 1 ]] && {
+    WriteJournal "vim"
+    LOG info "Process completed, exiting..."
+    exit 0
+}
+
+if [[ ! -f "${JOURNAL_DIR}/${JOURNAL_FILE}" ]]; then
+    touch "${JOURNAL_DIR}/${JOURNAL_FILE}" && \
+        LOG info "Created ${GREEN}${JOURNAL_DIR}/${JOURNAL_FILE}${NC}"
+else
+    LOG info "File '${GREEN}${JOURNAL_DIR}/${JOURNAL_FILE}${NC}' already exists"
+fi
+

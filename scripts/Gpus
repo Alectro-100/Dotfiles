@@ -1,0 +1,43 @@
+#!/bin/bash
+
+HL="\033[1m"
+NC="\033[0m"
+
+echo -e "\n${HL}PCI GPU Devices (lspci)${NC}"
+lspci -nn | grep -i "VGA\|3D"
+
+echo -e "\n${HL}/dev/dri/by-path → card mappings:${NC}"
+for path in /dev/dri/by-path/*-card; do
+    card=$(readlink -f "$path" | xargs basename)
+    pci=$(basename "$path" | cut -d- -f2)
+    echo "  $card ↔ $pci ↔ $path"
+done
+
+echo -e "\n${HL}DRM Cards → PCI Address Mapping${NC}"
+for card in /sys/class/drm/card[0-9]; do
+    card_name=$(basename "$card")
+    device_path=$(readlink -f "$card/device")
+    vendor=$(cat "$card/device/vendor")
+    vendor_name="Unknown"
+    case "$vendor" in
+        0x10de) vendor_name="NVIDIA" ;;
+        0x1002) vendor_name="AMD" ;;
+        0x8086) vendor_name="Intel" ;;
+    esac
+    echo "  $card_name → $device_path → $vendor_name"
+done
+
+echo -e "\n${HL}Connected Displays${NC}"
+for conn in /sys/class/drm/card*-*; do
+    [ -e "$conn/status" ] || continue
+    status=$(cat "$conn/status")
+    if [[ "$status" == "connected" ]]; then
+        name=$(basename "$conn")
+        pci=$(readlink -f "$conn/device" | grep -oP '0000:\K[0-9a-f:.]+')
+        echo "  $name is connected ↔ PCI $pci"
+    fi
+done
+
+echo -e "\n${HL}Vulkan Devices${NC}"
+vulkaninfo 2>/dev/null | grep deviceName | sed 's/^/  /'
+

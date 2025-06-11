@@ -1,0 +1,107 @@
+#!/bin/bash
+
+set -euo pipefail
+
+GREEN="\033[38;2;0;255;0m"
+BLUE="\033[38;2;100;40;255m"
+MSG_COL="\033[38;2;255;240;200m"
+RED="\033[38;2;255;0;0m"
+NC="\033[0m"
+
+ARGUMENT_ARRAY=("$@")
+
+# Git specifig variables
+GITHUB_REPO_URL=""
+COMMIT_MESSAGE=""
+CURRENT_BRANCH=""
+SATISFIED=""
+FORCE=""
+PUSH=1
+
+function INFO() {
+    echo -e "[${GREEN}*${NC}]: $1"
+}
+
+function ERROR() {
+    echo -e "[${RED}!${NC}]: $1"
+    exit 1
+}
+
+function PushCode() {
+    git push "${GITHUB_REPO_URL:-"origin"}" $CURRENT_BRANCH ${FORCE} && {
+        INFO "${MSG_COL}Successfully pushed your changes to Github.${NC}"
+    }
+}
+
+if [[ $# -eq 0 ]]; then
+    ERROR "No enough arguments."
+fi
+
+if ! ping -c 1 example.com 1> /dev/null 2>&1; then
+    ERROR "No Internet? Connect to a Network first"
+fi
+
+declare -A GIT_DIR_ARRAY=(
+    ["dotfiles"]="${HOME}/DEV_DIR/GIT/ConfigFiles"
+    ["Notes"]="${HOME}/Notes"
+)
+
+for (( i=0 ; i < ${#ARGUMENT_ARRAY[@]} ; i++ )); do
+    arg="${ARGUMENT_ARRAY[$i]}"
+    case "$arg" in
+        C|config|configs|Config|Configs|Dotfiles|dotfile|Dotfile|dot)
+            GIT_DIR="${GIT_DIR_ARRAY[dotfiles]}"
+            ;;
+        N|Note|Notes)
+            GIT_DIR="${GIT_DIR_ARRAY[Notes]}"
+            ;;
+        -f|--force)
+            FORCE="--force"
+            ;;
+        *)
+            ERROR "Invalid argument $arg"
+            ;;
+    esac
+done
+
+if [[ ! -d ${GIT_DIR} ]]; then
+    ERROR "'${BLUE}${GIT_DIR}${NC}' doesn't exist you might want to update this"
+fi
+
+if cd "${GIT_DIR}"; then
+    git status &> /dev/null || ERROR "Not a git repository '${GIT_DIR}'"
+else
+    ERROR "Failed to located directory '${GIT_DIR}'"
+fi
+
+if [[ $PUSH -eq 1 ]]; then
+    CURRENT_BRANCH="$(cd "${GIT_DIR}"; git symbolic-ref --short HEAD)"
+    INFO "${GREEN}Git repository:${NC} ${BLUE}${GIT_DIR}${NC}${NC}"
+    INFO "On branch: ${CURRENT_BRANCH}"
+    # git reset --soft HEAD~1 || failure=$(( failure + 1 ))
+    if git --no-pager diff --quiet && git --no-pager diff --quiet --cached; then
+        INFO "No changes detected, working tree clean"
+        INFO "Pushing existing commit."
+        PushCode
+    else
+        INFO "Launching interactive git add"
+        git add -p || ERROR "Interactive staging failed"
+        echo -en "Your commit message: "
+        read -r COMMIT_MESSAGE
+        # git reflog expire --expire=now --all
+        if [[ -z "${COMMIT_MESSAGE}" ]]; then
+            ERROR "Empty Commit message"
+        fi
+        INFO "Summary of staged changes"
+        git diff --staged --stat
+        echo -en "Are you satisfied with changes? (y|n)"
+        read -r SATISFIED
+        if [[ "${SATISFIED}" =~ ^(y|yes|Yes)$ || "${SATISFIED}" == "" ]]; then
+            git commit -m "${COMMIT_MESSAGE}" && INFO "Successfully commited the changes"
+        else
+            ERROR "Commit aborted"
+        fi
+        PushCode
+    fi
+fi
+

@@ -1,0 +1,68 @@
+#!/bin/bash
+
+FLAG1="$1"
+FLAG2="$2"
+
+DISK_IMG="/data/VMs/Linux_LFS.raw"
+ISO="/data/VMs/Archlinux_x86_64.iso"
+FORMAT="${DISK_IMG##*.}"
+RAM="$(( $(free | grep Mem | awk -F' ' '{ print $2 }' ) / 1640 ))"
+
+[[ -f "$DISK_IMG" ]] || {
+    echo "ERROR: DISK Image '$IMAGE' does not exist"
+    exit 1
+}
+
+[[ -f "$ISO" ]] || {
+    echo "ERROR: ISO '$ISO' does not exist"
+    exit 1
+}
+
+function boot_VM() {
+    echo "DISK: $DISK_IMG"
+    echo "DISK FORMAT: $FORMAT"
+    echo "ISO IMAGE: $ISO"
+    echo "RAM: $RAM"
+
+    [[ "$FLAG2" == "fs" ]] && {
+        FULL_SCREEN='-full-screen'
+    }
+
+    echo "Booting into VM ..."
+    qemu-system-x86_64 \
+        -m $RAM \
+        -cpu EPYC-v4 \
+        -vga qxl \
+        -display gtk,gl=on \
+        -boot d \
+        -enable-kvm \
+        -drive file="$DISK_IMG",media=disk,format=$FORMAT,if=virtio \
+        -drive file="$ISO",media=cdrom $FULL_SCREEN
+}
+
+function start_VM() {
+    echo "DISK: $DISK_IMG"
+    echo "DISK FORMAT: $FORMAT"
+    echo "RAM: $RAM"
+
+    [[ "$FLAG1" == "fs" ]] && {
+        FULL_SCREEN='-full-screen'
+    }
+    echo "Starting VM ..."
+    qemu-system-x86_64 \
+        -m $RAM \
+        -cpu EPYC-v4 \
+        -vga qxl \
+        -display gtk,gl=on \
+        -enable-kvm \
+        -audiodev pa,id=devpa \
+        -drive file="$DISK_IMG",media=disk,format=$FORMAT,if=virtio $FULL_SCREEN
+        # -display gtk,gl=on,show-cursor=on,show-menubar=on,grab-on-hover=off,zoom-to-fit=on,window-close=off $FULL_SCREEN
+}
+
+if [[ "$FLAG1" == "boot" ]]; then
+    boot_VM
+else
+    start_VM
+fi
+
