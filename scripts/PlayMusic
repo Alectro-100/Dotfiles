@@ -1,7 +1,7 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
+IFS=$'\n'
 ARGUMENTS=("$@")
-
 RED="\033[38;2;244;10;10m"
 GREEN="\033[38;2;80;250;100m"
 BROWN="\033[38;2;240;120;120m"
@@ -10,15 +10,32 @@ GREY="\033[38;2;160;160;140m"
 BLUE="\033[38;2;150;134;255m"
 NC="\033[0m"
 
-MUSIC_DIRECTORY='$HOME/Music'
+declare -a  mpv_flags=()
+MUSIC_DIRECTORY="\${HOME}/Music"
 MUSIC_DIR="$(eval echo ${MUSIC_DIRECTORY})"
+SELECTED=()
+CURRENTLY_PLAYING=()
+video=
+LOOP=0
+FULL_LOOP=0
+QUIET=
+
+# LOOP: Set if user selected more than 1 file (triggers script-level for-loop playback)
+# FULL_LOOP: Set only if user passed --loop (mpv handles all track looping internally)
+# CURRENTLY_PLAYING[]: Used only in FULL_LOOP mode for pretty logging. Not needed in script-loop mode.
+
+
 # MPV_SOCKET="/tmp/mpv_socket"
-CURRENTLY_PLAYING=""
-video=""
 
 # function cleanup() {
 #     echo '{"text": "", "class": "inactive"}"' | socat - UNIX-CONNECT:${MPV_SOCKET}
 # }
+
+trap Exit SIGTERM SIGINT
+
+function Exit() {
+    exit $1
+}
 
 function LOG() {
     local type_="$1"
@@ -27,7 +44,7 @@ function LOG() {
     case "${type_}" in
         info)
             color="${GREEN}"
-            echo -e "[${color}INFO${NC}]: $@"
+            [[ -z "${QUIET}" ]] && echo -e "[${color}INFO${NC}]: $@"
             ;;
         error)
             color="${RED}"
@@ -37,19 +54,41 @@ function LOG() {
 }
 
 function PlayMusic() {
-    CURRENTLY_PLAYING="$( basename "${MUSIC_DIRECTORY}/${SELECTED}" )"
-    LOG info "${GREY}MUSIC${NC}: ${GREEN}${CURRENTLY_PLAYING%.*}${NC}"
-    LOG info "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} \"${LIGHT_SKIN}${MUSIC_DIRECTORY}/${SELECTED}${NC}\"\n"
-    # echo "{\"text\": \"🎵 ${CURRENTLY_PLAYING%.*}\", \"class\":\"active\"}" | socat - UNIX-CONNECT:${MPV_SOCKET}
-    mpv ${mpv_flags[@]} "${MUSIC_DIR}/${SELECTED}"
+    local files_joined=("$@")
+    local f=""
+
+    if [[ $FULL_LOOP -eq 1 ]]; then
+        for (( i=0; i < ${#files_joined[@]}; i++)); do
+            f="${files_joined[$i]}"
+            CURRENTLY_PLAYING+=("$(basename "${MUSIC_DIRECTORY}/${f}")")
+            LOG info "${GREY}MUSIC${NC}: ${GREEN}${CURRENTLY_PLAYING[$i]%.*}${NC}"
+        done
+        # LOG info "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} \"${LIGHT_SKIN}${files_joined[@]/#/${MUSIC_DIR}/}/${f}${NC}\"\n"
+        LOG info "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} \"${LIGHT_SKIN}${CURRENTLY_PLAYING[@]%.*}${NC}\"\n"
+        mpv ${mpv_flags[@]} "${files_joined[@]/#/${MUSIC_DIR}/}"
+
+    else
+        for f in "${files_joined[@]}"; do
+            CURRENTLY_PLAYING="$(basename "${MUSIC_DIRECTORY}/${f}")"
+            LOG info "${GREY}MUSIC${NC}: ${GREEN}${CURRENTLY_PLAYING%.*}${NC}"
+            LOG info "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} \"${LIGHT_SKIN}${MUSIC_DIRECTORY}/${f}${NC}\"\n"
+            # echo "{\"text\": \"🎵 ${CURRENTLY_PLAYING%.*}\", \"class\":\"active\"}" | socat - UNIX-CONNECT:${MPV_SOCKET}
+            mpv ${mpv_flags[@]} "${MUSIC_DIR}/${f}"
+        done
+    fi
 }
 
 function Play() {
-    if [[ -f "${MUSIC_DIR}/${SELECTED}" ]]; then
-        PlayMusic
-    else
-        LOG error "No such Music file: '${LIGHT_SKIN}${SELECTED}${NC}'"
-    fi
+    local MUSIC_FILES=()
+    for file in "${SELECTED[@]}"; do
+        if [[ -f "${MUSIC_DIR}/${file}" ]]; then
+            MUSIC_FILES+=("${file}")
+        else
+            LOG error "No such Music file: '${LIGHT_SKIN}${file}${NC}'"
+        fi
+    done
+
+    PlayMusic "${MUSIC_FILES[@]}"
 }
 
 # trap cleanup EXIT INT SIGTERM
@@ -77,6 +116,12 @@ for (( i=0 ; i < "${#ARGUMENTS[@]}" ; i++ )); do
                 LOG info "Default volume: ${BLUE}65${NC}"
             fi
             ;;
+        -q|--quiet)
+            QUIET="--really-quiet"
+            ;;
+        -l|--loop)
+            FULL_LOOP=1
+            ;;
     esac
 done
 
@@ -85,18 +130,29 @@ done
     exit 1
 }
 
-SELECTED="$(find "${MUSIC_DIR}" \( -type f -iregex '.*\.\(mp3\|flac\|m4a\|wav\|aac\|ogg\|opus\|wma\|alac\|ape\|mpc\|wavpack\)' \) -printf "%P\n" | fzf)"
+mapfile -t SELECTED < <(find "${MUSIC_DIR}" \( -type f -iregex '.*\.\(mp3\|flac\|m4a\|wav\|aac\|ogg\|opus\|wma\|alac\|ape\|mpc\|wavpack\)' \) -printf "%P\n" | fzf --multi)
 
-[[ -z "${SELECTED}" ]] && {
+if [[ ${#SELECTED[@]} -eq 0 ]]; then
     LOG info "No song selected"
     exit 1
+elif [[ ${#SELECTED[@]} -gt 1 ]]; then
+    LOOP=1
+fi
+
+[[ $LOOP -eq 0 ]] && {
+    mpv_flags+=("--loop-file=inf")
+} || {
+    mpv_flags+=("--loop-file=no")
 }
 
 mpv_flags+=(
-    "--loop-file=inf"
+    "${QUIET}"
     "--vid=${video:-"no"}"
     "--volume=${volume:-65}"
     "--script-opts=mpris=yes"
+    "--vo=gpu-next"
+    "--hwdec=vulkan"
+    "--hdr-compute-peak"
     "--osc=no"
     "--msg-level=ffmpeg/demuxer=error"
 )

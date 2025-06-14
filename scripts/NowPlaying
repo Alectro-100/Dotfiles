@@ -22,6 +22,8 @@ function CheckPlay() {
             artist="$(playerctl --player="${player}" metadata artist)"
             album="$(playerctl --player="${player}" metadata album)"
 
+            [[ "${player}" == "mpv" ]] && title="${title%.*}"
+
             if [[ -n "${artist}" ]]; then
                 combined="${artist} - ${title}"
             else
@@ -51,6 +53,7 @@ function CheckPlay() {
 while true; do
     CheckPlay
     [[ $isPlaying -eq 0 ]] && {
+        echo "You are not playing anything"
         echo '{"text": "", "class": "inactive"}' | socat - UNIX-CONNECT:"${MPV_SOCKET}"
     }
     sleep 0.5

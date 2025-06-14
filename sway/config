@@ -6,7 +6,6 @@ font pango: SourceCodePro Large 6
 
 ### Start foot server
 exec --no-startup-id foot --server=/tmp/foot.sock
-exec --no-startup-id alacritty --daemon
 
 ### Policykit agent
 exec --no-startup-id /usr/lib/polkit-kde-authentication-agent-1
@@ -62,6 +61,7 @@ set $menu_rofi rofi -show-icons -font Hack -theme material -show drun
     }
 
 ### Cursor will go vanish in 6 seconds (Seat devices)
+    ## seat value must be specified in milliseconds
     seat * hide_cursor 1000
 
 ### Enable Xwayland
@@ -86,6 +86,9 @@ xwayland enabled
 
     # Any Trackpad
     input type:touchpad {
+        accel_profile adaptive
+        click_method clickfinger
+        drag_lock disabled
         dwt enabled              # disable while typing
         natural_scroll enabled   # Inverted scroll
         tap enabled              # enable taps (should not be disabled)
@@ -224,27 +227,27 @@ xwayland enabled
 
     # What's my selected screen resolution?
     bindsym $mod+Shift+G exec bash -c \
-        '$(Resolution="$(slurp)" && notify-send "$Resolution")'
+        '$(Res="$(slurp)" && notify-send "${Res}")'
 
     # Shutting down... Because I need a nap, you deserve one too (Mod+Alt+Shift+P)
     bindsym $mod+Alt+Shift+P exec bash -c \
-        '$(notify-send "Shutting down... because I need a nap" ; sleep 2 ; systemctl poweroff --now)'
+        '$(notify-send "Shutting down... because I need a nap" ; sleep 2 ; swaymsg exit; systemctl poweroff --now)'
 
     # Shutting down ($mod+Alt+P)
     bindsym $mod+Alt+P exec bash -c \
-        '$(swaymsg exit ; systemctl poweroff --now)'
+        '$(swaymsg exit; systemctl poweroff --now)'
 
     # Sometimes life just needs refresh ($mod+Alt+Shift+R)
     bindsym $mod+Alt+Shift+R exec bash -c \
-        '$(notify-send "REBOOTING... Sometimes you need to restart!" ; sleep 2 ; systemctl reboot --now)'
+        '$(notify-send "REBOOTING... Sometimes you need to restart!" ; sleep 2 ; swaymsg exit; systemctl reboot --now)'
 
     # Just Reboot (Mod+Alt+R)
     bindsym $mod+Alt+R exec bash -c \
-        '$(swaymsg exit ; systemctl reboot --now)'
+        '$(swaymsg exit; systemctl reboot --now)'
 
     # I'm going Sleep (Mod+Alt+Shift+delete)
     bindsym $mod+Alt+Shift+delete exec bash -c \
-        '$(notify-send "I need some Rest"; sleep 2 ; systemctl suspend --now)'
+        '$(notify-send "I need some Rest"; sleep 2 ; swaymsg exit; systemctl suspend --now)'
 
     # Sleep (Alt+Ctrl+delete)
     bindsym $mod+Alt+delete exec bash -c \
@@ -254,13 +257,13 @@ xwayland enabled
     bindsym $mod+Alt+S exec bash -c \
         '$(systemctl hybrid-sleep --now)'
 
-    # Execute whatever the hell that script does... We don't judge
+    # Execute whatever the hell that script does
     bindsym $mod+Z exec bash -c \
         '$(foot -e $HOME/.scripts/exec_me)'
 
     # Journal time: Let's document the mess
     bindsym Alt+J exec bash -c \
-        '$(foot -e $HOME/.scripts/JR)'
+        '$(foot -e $HOME/.bin/JournalToday nvim)'
 
     # List of Emojies in rofi-emoji
     bindsym Alt+Shift+E exec bash -c \
@@ -311,7 +314,7 @@ xwayland enabled
     for_window {
 
         # Set opacity for all windows
-        [app_id=".*"] opacity 0.9898
+        [app_id=".*"] opacity 0.98
         # Border of newly spawned window
         [class=".*"] border pixel 1
         # Border of floating window

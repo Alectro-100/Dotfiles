@@ -55,8 +55,8 @@ alias ncduc="clear; ncdu --color dark"
 alias qemu="qemu-system-x86_64"
 alias sway="env WLR_RENDERER=vulkan sway &> /tmp/sway.log"
 alias VimBeGood="clear; docker run -it --rm brandoncc/vim-be-good:stable && echo && clear"
-alias CPP="cd $HOME/DEV_DIR/C_PlusPlus/incompleted_souls.dir && git status"
-alias C="cd $HOME/DEV_DIR/C_Lang && git status"
+alias CPP="cd ${HOME}/DEV/C_PlusPlus/incompleted_souls.dir && git status"
+alias C="cd ${HOME}/DEV/C_Lang && git status"
 alias sourceme="source ~/.zshrc.pre-oh-my-zsh"
 alias zshrc="clear; vim ~/.zshrc"
 alias vimrc="clear; vim ~/.vimrc"
@@ -74,11 +74,13 @@ alias weather="curl wttr.in/24.5800,80.8369"
 alias nvtop="nvtop --delay 2"
 alias gs="git status"
 alias Fonts="fc-list | awk -F':' '{print $1}' | awk -F'/' '{print $6}' | awk -F'.' '{print $1}' | sort -u"
-alias swayconfig="${EDITOR} $HOME/.config/sway/config"
-alias waybarconfig="nvim $HOME/.config/waybar/"
-alias Spanish="cd $HOME/Notes/Language/Spanish"
+alias swayconfig="${EDITOR} ${HOME}/.config/sway/config"
+alias waybarconfig="nvim ${HOME}/.config/waybar/"
+alias Spanish="cd ${HOME}/Notes/Language/Spanish"
 alias NULL="/dev/null"
-alias M="$HOME/Music"
+alias M="${HOME}/Music"
+alias n="nvim"
+alias v="vim"
 alias colorchoser="exec env QT_QPA_PLATFORMTHEME=qt6ct kcolorchooser 2> /dev/null &; disown ; exit"
 alias getcolors="exec env QT_QPA_PLATFORMTHEME=qt6ct kcolorchooser 2> /dev/null &; disown"
 alias mpv="mpv --volume=65"
@@ -285,70 +287,77 @@ function C_cc() {
     shift
     gcc -pedantic -Wall -Wextra -lstdc++ \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$2" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
 }
 
 function C_cc_DEBUG() {
     local file="$(realpath $1)"
     local no_ext_filename="${file%.*}"
+    shift
     gcc -pedantic -Wall -Wextra -Werror -DDEBUG -lstdc++ \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$2" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
 }
 
 function Cpp_cc() {
     local file="$(realpath $1)"
     local no_ext_filename="${file%.*}"
+    shift
     gcc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra \
         -fno-elide-constructors \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$2" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
 }
 
 function Cpp_cc_DEBUG() {
     local file="$(realpath $1)"
     local no_ext_filename="${file%.*}"
+    shift
     gcc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra \
         -Werror -DDEBUG  -fno-elide-constructors \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$2" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
 }
 
 function C_clang() {
     local file="$(realpath $1)"
     local no_ext_filename="${file%.*}"
+    shift
     clang -pedantic -Wall -Wextra \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$2" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
 }
 
 function Cpp_clang() {
     local file="$(realpath $1)"
     local no_ext_filename="${file%.*}"
+    shift
     clang++ -pedantic -Wall -Wextra \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$2" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
 }
 
 function GUI_BUILD_DEBUG() {
     local FILE="$(realpath $1)"
     local NO_EXT_FILENAME="${FILE%.*}"
+    shift
     [[ -f "$FILE" ]] && gcc -std=c++20 -Wall -Wextra -Werror -Wconversion \
         -Wshadow -pedantic -O0 -fno-inline -lstdc++ -lglfw -lGL -lglad -lm \
         "${FILE}" -o "${NO_EXT_FILENAME}" && "${NO_EXT_FILENAME}"
     "${NO_EXT_FILENAME}"
-    CompilationExitHandler $? "$2" "${NO_EXT_FILENAME}" "$@"
+    CompilationExitHandler $? "$1" "${NO_EXT_FILENAME}" "$@"
 }
 
 function GUI_BUILD_RELEASE() {
     local FILE="$(realpath $1)"
     local NO_EXT_FILENAME="${FILE%.*}"
+    shift
     [[ -f "$FILE" ]] && gcc -std=c++20 -Wall -Wextra -Wconversion -Wshadow \
         -pedantic -O3 -flto -march=native -funroll-loops -fomit-frame-pointer \
         -lstdc++ -lglfw -lGL -lglad -lm \
         "${FILE}" -o "${NO_EXT_FILENAME}" && "${NO_EXT_FILENAME}"
     "${NO_EXT_FILENAME}"
-    CompilationExitHandler $? "$2" "${NO_EXT_FILENAME}" "$@"
+    CompilationExitHandler $? "$1" "${NO_EXT_FILENAME}" "$@"
 }
 
 ### Lauch sway Window manager with vulkan
@@ -363,7 +372,6 @@ function sway_vulkan() {
     export LIBVA_DRIVER_NAME=radeonsi
     # Overrides the Generic Buffer Management backend
     # GBM_BACKEND=nvidia-drm
-    # unset GBM_BACKEND
     unset GBM_BACKEND
     # Forces GLX to use NVIDIA's implementation.
     # use mesa for intel/amd
@@ -404,6 +412,24 @@ function Update() {
 
     if command -v flatpak &> /dev/null; then
         flatpak update -y
+    fi
+}
+
+### ScreenShots by grim
+function sc() {
+    local -r SC="${HOME}/Grim_Screenshots"
+    if [[ -d "${SC}" ]]; then
+        cd "${SC}"
+
+        if command -v imv 1> /dev/null 2>&1 ; then
+            imv * &> /dev/null &
+            disown
+        else
+            feh * &> /dev/null &
+            disown
+        fi
+    else
+        exit 1
     fi
 }
 
@@ -462,7 +488,13 @@ function Ip() {
 }
 
 ### Update grub
-function Update-grub() {
+function UpdateGrub() {
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+
+}
+
+### Update grub
+function GrubUpdate() {
     sudo grub-mkconfig -o /boot/grub/grub.cfg
 }
 

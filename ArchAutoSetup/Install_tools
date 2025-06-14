@@ -111,7 +111,7 @@ function Install_browsers() {
 
 function Install_terminals() {
     MSG="Terminal emulators"
-    Pacman_install "${MSG}" foot kitty konsole
+    Pacman_install "${MSG}" foot alacritty kitty konsole
 }
 
 function Install_monitors() {
@@ -125,6 +125,7 @@ function Install_utils() {
     MSG="Utils"
     Pacman_install "${MSG}" 7zip xz tar rclone brightnessctl cpu-x dust gdu tree \
         tmux psmisc sysstat android-tools ansible
+    AUR_install "${MSG}" nbfc-linux
 }
 
 function Install_term_filemanagers() {
@@ -175,6 +176,11 @@ function Install_sway_setup() {
     AUR_Install "${MSG} via aur" autotiling
 }
 
+function Install_mail() {
+    MSG="Email client"
+    Pacman_install "${MSG}" mutt msmtp
+}
+
 function Install_misc_tools() {
     MSG="Miscellaneous Tools"
     Pacman_install "${MSG}" zettlr figlet terminator sleuthkit lshw inxi net-tools \
@@ -205,6 +211,7 @@ function main() {
             crypto) Install_crypto_fun ;;
             sway) Install_sway_setup ;;
             misc) Install_misc_tools ;;
+            mail) Install_mail ;;
             all)
                 Install_graphics_tools
                 Install_browsers
@@ -216,6 +223,7 @@ function main() {
                 Install_crypto_fun
                 Install_sway_setup
                 Install_misc_tools
+                Install_mail
                 ;;
             *) LOG error "Unknown module: $arg" ;;
         esac

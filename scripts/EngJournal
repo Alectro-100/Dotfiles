@@ -1,0 +1,90 @@
+#!/bin/bash
+
+LESSON_DIRECTORY="${HOME}/English"
+PROMPT_HISTORY="${LESSON_DIRECTORY}/.prompt_history"
+FILE=
+EDIT_FILE=0
+
+function LOG() {
+    local _type="$1"
+    shift
+    case ${_type} in
+        info)
+            echo -e "[INFO]: $@"
+            ;;
+        error)
+            echo -e "[ERROR]: $@"
+            ;;
+    esac
+}
+
+function CreateDirectory() {
+    mkdir --parents "${LESSON_DIRECTORY}" && \
+        LOG info "Directory created: ${LESSON_DIRECTORY}"
+}
+
+function CreateFile() {
+    local File="$1"
+    local Prompt=
+    mkdir --parents $(dirname ${PROMPT_HISTORY})
+    touch "${PROMPT_HISTORY}"
+    # Loop to get unique prompt
+    for i in {1..10}; do
+        Prompt=$(tgpt --quiet "Give me one short writing prompt, 1–2 sentences. No explanation. No intro. Only the prompt. Seed: $RANDOM")
+        # Strip weird chars just in case
+        Prompt=$(echo "$Prompt" | tr -cd '[:print:]\n')
+        grep -Fxq "$Prompt" "$PROMPT_HISTORY" || break
+    done
+
+    echo "$Prompt" >> "$PromptHistory"
+
+    {
+        echo "# vim:filetype=markdown"
+        echo ""
+        echo "# Lesson"
+        echo "_Date: $(date '+%Y-%m-%d')_"
+        echo ""
+        echo "### Prompt"
+        echo "> ${Prompt}"
+        echo ""
+        echo "### Entry"
+        echo ">"
+    } > "${File}" && \
+        LOG info "File created: ${File}"
+}
+
+function EditFile() {
+    local -r File="$1"
+    local -r num="$2"
+    export EDITOR
+
+    LOG info "Editing ${File}"
+    ${EDITOR:-vim} "${File}"
+}
+
+[[ $# -eq 0 ]] && {
+    LOG error "No enough arguments were given"
+    exit 1
+}
+
+for arg in "$@"; do
+    if [[ ${arg} =~ ^[0-9]+$ ]]; then
+        FILE="${LESSON_DIRECTORY}/Lession_${arg}.md"
+    fi
+    if [[ "${arg}" =~ ^(--edit|-e)$ ]]; then
+        EDIT_FILE=1
+    fi
+done
+
+if [[ ! -d "${LESSON_DIRECTORY}" ]]; then
+    CreateDirectory "${LESSON_DIRECTORY}"
+fi
+
+if [[ -n "${FILE}" && ! -f "${FILE}" ]]; then
+    CreateFile ${FILE}
+fi
+
+if [[ ! -s "${FILE}" || $EDIT_FILE -eq 1 ]]; then
+    [[ -f "${FILE}" ]] && EditFile "${FILE}" || LOG error "File '${FILE}' does not exist"
+fi
+

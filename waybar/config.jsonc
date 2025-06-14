@@ -51,11 +51,22 @@
         "format": " {}"
 
     },
+
+    // Cava on the top
+    "custom/cava": {
+        "exec": "$HOME/.bin/waybar_cava 2",
+        "on-click": "pkill -SIGUSR1 -f waybar_cava",
+        "return-type": "json",
+        "format": "{}"
+    },
+
+    // Application launcher
     "custom/launcher": {
         "on-click": "nwg-drawer -mb 200 -ml 400 -mr 450 -mt 200",
         "tooltip": false,
         "format": "  "
     },
+
     "custom/seperator": {
         // "format": ""
         "format": "|",
@@ -89,13 +100,6 @@
             // "5": [],  // Always show workspace 5
             // "6": []   // Always show workspace 6
         }
-    },
-
-    "custom/cava": {
-        "exec": "$HOME/.bin/waybar_cava 2",
-        "on-click": "pkill -SIGUSR1 -f waybar_cava",
-        "return-type": "json",
-        "format": "{}"
     },
 
     "keyboard-state": {
