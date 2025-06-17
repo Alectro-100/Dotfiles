@@ -1,5 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-NET_NAME="$1"
-/usr/bin/nmcli device wifi connect "$NET_NAME" --ask
+if [[ -z "$1" ]]; then
+    echo "Usage: $0 <SSID>"
+    exit 1
+fi
+
+nmcli device wifi connect "$1" --ask
 

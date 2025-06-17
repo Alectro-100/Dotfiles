@@ -1,37 +1,42 @@
 #!/usr/bin/env bash
 
-[[ -n $ZSH_VERSION ]] && setopt hist_ignore_all_dups
+THIS_FILE="$0"
 
-zstyle :compinstall filename '/home/Raj/.zshrc'
-autoload -Uz compinit
-compinit
-
-RED="\033[38;2;255;0;0m"
-GREEN="\033[38;2;0;255;0m"
+RED="\033[38;2;244;10;10m"
+GREEN="\033[38;2;80;250;100m"
+WARN="\033[38;2;233;98;116m"
+BROWN="\033[38;2;240;120;120m"
+LIGHT_SKIN="\033[38;2;255;230;180m"
+GREY="\033[38;2;160;160;140m"
+BLUE="\033[38;2;150;134;255m"
 NC="\033[0m"
-HOSTNAME="$(cat /etc/hostname)"
 
-LANG=en_US.UTF-8
+PKG_MANAGER=
 
-WINEPREFIX="${HOME}/wine"
-HISTFILE="/tmp/histfile"
-EDITOR="vim"
-PATH="/usr/bin"
-BREW="/home/linuxbrew/.linuxbrew"
+function LOG() {
+    local type_="$1"
+    shift
+    case "${type_}" in
+        info)
+            [[ -z "${QUIET}" ]] && printf "%b\n" "[${GREEN}*${NC}]: $@"
+            ;;
+        warn)
+            printf "%b\n" "[${WARN}^${NC}]: $@"
+            ;;
+        error)
+            printf "%b\n" "[${RED}!${NC}]: $@"
+            ;;
+    esac
+}; alias Log="LOG"; alias L="LOG"
 
-PATH+=: PATH+="/usr/local/bin:/usr/local/sbin:/usr/sbin:/sbin:/bin"
-PATH+=: PATH+="${HOME}/.bin"
-PATH+=: PATH+="${HOME}/.cargo/bin:${HOME}/.npm-global/bin:${BREW}/bin"
-
-TMP_PATH="/tmp/.home.path"
-if [[ ! -s "${TMP_PATH}" ]] ;then
-    echo "$PATH" &> "${TMP_PATH}"
-else
-    PATH="$(cat ${TMP_PATH})"
-fi
-
-export PATH LANG EDITOR HISTFILE WINEPREFIX
-
+### Global variables
+export HOSTNAME="$(cat /etc/hostname)"
+export LANG=en_US.UTF-8
+export WINEPREFIX="${HOME}/wine"
+export HISTFILE="/tmp/histfile"
+export EDITOR="nvim"
+export BREW="/home/linuxbrew/.linuxbrew"
+export PATH="/usr/bin"
 
 ### Necessary Aliases
 alias ip="ip --color=auto"
@@ -44,28 +49,20 @@ alias ls="lsd --color=always --git --icon=always --group-dirs=first --classify 2
 alias ll="lsd --long --color=always --git --icon=always --group-dirs=first --classify --permission octal --total-size 2> /dev/null"
 alias la="lsd --color=always --git --all --icon=always --group-dirs=first --classify --permission octal --total-size 2> /dev/null"
 alias diff="diff --color=auto"
-alias cp="echo -e '\033[38;2;240;80;100mUse rsync MotherFucker\033[0m'; return 0 &> /dev/null"
+alias cp="LOG error '${RED}Use rsync MF${NC}'; return 1 &> /dev/null"
 alias catbat="bat --color=always --decorations=never --paging=never"
 alias grep="grep --color=always"
 alias dir="dir --color=always"
-alias MOD="rclone mount OneDrive:/ /home/Raj/OneDrive/ --daemon"
-alias UOD="sudo umount /home/Raj/OneDrive/ --force"
 alias ncdu="ncdu --color dark"
-alias ncduc="clear; ncdu --color dark"
 alias qemu="qemu-system-x86_64"
 alias sway="env WLR_RENDERER=vulkan sway &> /tmp/sway.log"
 alias VimBeGood="clear; docker run -it --rm brandoncc/vim-be-good:stable && echo && clear"
 alias CPP="cd ${HOME}/DEV/C_PlusPlus/incompleted_souls.dir && git status"
 alias C="cd ${HOME}/DEV/C_Lang && git status"
 alias sourceme="source ~/.zshrc.pre-oh-my-zsh"
-alias zshrc="clear; vim ~/.zshrc"
-alias vimrc="clear; vim ~/.vimrc"
-alias nvimrc="clear; nvim ~/.config/nvim/init.vim"
-alias yazi="EDITOR=nvim yazi"
-alias yazic="clear; EDITOR=nvim yazi"
-alias vimc="clear; vim"
-alias nvimc="clear; nvim"
-alias btopc="clear; btop"
+alias zshrc="vim ~/.zshrc"
+alias vimrc="vim ~/.vimrc"
+alias nvimrc="nvim ~/.config/nvim/init.vim"
 alias gtypistH="gtypist --personal-best --max-error=1.8 --no-welcome-screen --term-cursor --word-processor --always-sure"
 alias useless_pkg="pacman -Qtdq"
 alias cleancache="(paru -Scc || yay -Scc ) && sudo pacman -Scc"
@@ -83,8 +80,11 @@ alias n="nvim"
 alias v="vim"
 alias colorchoser="exec env QT_QPA_PLATFORMTHEME=qt6ct kcolorchooser 2> /dev/null &; disown ; exit"
 alias getcolors="exec env QT_QPA_PLATFORMTHEME=qt6ct kcolorchooser 2> /dev/null &; disown"
-alias mpv="mpv --volume=65"
+alias mpv="mpv --vid=auto --vo=gpu-next --hwdec=vulkan --hdr-compute-peak --volume=65"
+alias Vireon="cd ${HOME}/DEV/VIreon && ssh-add ${HOME}/.ssh/id_ed25519_rustlog"
 alias radeontop="radeontop --color"
+alias exiftool="/usr/bin/vendor_perl/exiftool"
+alias metadata="/usr/bin/vendor_perl/exiftool"
 
 ### Flatpak Applications
 alias fp-scrivano="flatpak run com.github.scrivanolabs.scrivano"
@@ -103,58 +103,170 @@ alias fp-calculator="flatpak run io.github.Qalculate.qalculate-qt"
 alias fp-qcal="flatpak run io.github.Qalculate.qalculate-qt"
 alias fp-systemmonitor="XDG_CURRENT_DESKTOP=KDE GTK_THEME=Adwaita:dark QT_QPA_PLATFORMTHEME=gtk plasma-systemmonitor"
 
-function encode() {
-    local input="$1"
-    local should_save="$2"
-    local output_file_name="$3"
-    if [[ -d "$input" ]]; then
-        echo "We don't accept directories"
-    elif [[ -f "$input" ]]; then
-        echo "This is the file: $input"
-        [[ $should_save == "true" ]] && { cat "$input" | tr "A-Za-z" "N-ZA-Mn-za-m" > "$output_file_name"; } || \
-            { cat "$input" | tr "A-Za-z" "N-ZA-Mn-za-m"; }
-        else
-            [[ $should_save == "true" ]] && { echo "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" > "$output_file_name"; } || \
-                { echo "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" ; }
-    fi
-}
+function PackageManager() {
+    local -a pkg_m_Arr=()
+    pkg_m_Arr=(pacman apt yum dnf yay)
 
-function decode() {
-    local input="$1"
-    local should_save="$2"
-    local output_file_name="$3"
-    if [[ -d "$input" ]]; then
-        echo "We don't accept directories"
-    elif [[ -f "$input" ]]; then
-        echo "This is the file: $input"
-        [[ $should_save == "true" ]] && { cat "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" > "$output_file_name"; } || \
-            { cat "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" ; }
+    for pkg_m in "${pkg_m_Arr[@]}"; do
+        if command -v "${pkg_m}" &> /dev/null; then
+            PKG_MANAGER="${pkg_m}"
+            [[ -z "$1" ]] && LOG info "You PackageManager is: ${pkg_m}"
+            return 0
+        fi
+    done
+}; alias pkg="PackageManager"; alias my_pkg_m="PackageManager"; alias my_package_manager="PackageManager"; alias my-package-manager="PackageManager"
+
+function RequiredTools() {
+    ## Get PackageManager
+    [[ -z $1 ]] && LOG info "Most basic tools"
+    PackageManager NULL
+    local -a TOOL_ARR=()
+    TOOL_ARR=(
+        # Shells
+        zsh fish
+        # Editors
+        nvim vim micro nano
+        # Version control
+        git
+        # Networking
+        curl rsync nmcli traceroute wget ssh traceroute dig
+        # Compression
+        gzip bzip2 xz zip
+        # Container
+        docker
+        # filemanager
+        yazi ranger
+        # Build tools
+        make cmake gcc clang
+        # Scripting languages
+        python ruby node npm php
+        # Productivity
+        htop btop tmux figlet cowsay tree jq fzf bat lsd eza rg pastel unzip zip
+        # Compilers
+        gcc clang gdb make cmake rustc
+        # Media/ TUI visulas
+        cava mpv imv feh pastel
+        # Others
+        jq lsd fzf bat eza rg yt-dlp rclone
+        # DevOps & security extras (optional)
+        kubectl ansible nmap john aircrack-ng
+    )
+
+    for binary in "${TOOL_ARR[@]}"; do
+        if command -v "${binary}" &> /dev/null; then
+            [[ -z $1 ]] && LOG info "Found '${BLUE}${binary}${NC}' in path: $(whereis ${binary} | cut -d' ' -f2)"
+        else
+            LOG error "'${BLUE}${binary}${NC}' Not Found. Install it using '$PKG_MANAGER'"
+        fi
+    done
+    return 0
+}; alias goodies="RequiredTools"; alias availabletools="RequiredTools"; alias mytools="RequiredTools"
+
+function RotTransform() {
+    local operation_type="$1"
+    local type_="$2"
+    local Input="$3"
+    local save_path="$4"
+    local -a Enc=('tr' 'A-Za-z' 'N-ZA-Mn-za-m')
+    local -a Dec=('tr' 'N-ZA-Mn-za-m' 'A-Za-z')
+    local -a operation=()
+
+    [[ -z "${Input}" ]] && {
+        LOG error "Input '${Input}' is empty"
+        return 1
+    }
+
+    if [[ "${operation_type}" == "encode" ]]; then
+        operation=("${Enc[@]}")
     else
-        [[ $should_save == "true" ]] && { echo "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" > "$output_file_name"; } || \
-            { echo "$input" | tr "N-ZA-Mn-za-m" "A-Za-z" ; }
+        operation=("${Dec[@]}")
+    fi
+
+    [[ -d "${Input}" ]] && {
+        LOG error "Cannot use directories"
+        return 1
+    }
+    if [[ -n "${save_path}" && -f  "${save_path}" ]]; then
+        save_path="${save_path}"
+    else
+        unset save_path
+    fi
+
+    if [[ "${type_}" == "text" ]]; then
+        [[ -z "${save_path}" ]] && ${operation[@]} <<< "${Input}" || \
+            ${operation[@]} <<< "${Input}" > "${save_path}"
+    else
+        [[ -z "${save_path}" ]] && ${operation[@]} < "${Input}" || \
+            ${operation[@]} < "${Input}" > "${save_path}"
     fi
 }
 
 ### Rotate text by 13
 function rot13() {
-    local operation="$1"
-    local input="$2"
-    local should_save="$3"
-    local output_file="$4"
-    [[ $should_save == "-s" ]] && should_save="true" || should_save="false"
-    if [[ $# -gt 1 ]]; then
-        if [[ ! -f "$input" ]]; then
-            echo "Only file and Strings are allowed"
-        else
-            if [[ $operation =~ ^(encode|e|-e)$ ]]; then
-                encode "$input" "$should_save" "$output_file"
-            elif [[ $operation =~ ^(decode|d|-d)$ ]]; then
-                decode "$input" "$should_save" "$output_file"
-            fi
-        fi
+    [[ -n $ZSH_VERSION ]] && emulate -LR bash
+    local -a ARGS=("$@")
+    local argc=${#ARGS[@]}
+    local operation=
+    local save_path=
+    local input=
+    local arg=
+    local next_arg=
+
+    if [[ $# -lt 1 ]]; then
+        LOG error "At least one arguments expected"
+        LOG info "rot13 <encode/decode> <file/string>"
+        return 1
+    fi
+
+    for (( i=0 ; i < argc; i++ )); do
+        arg="${ARGS[$i]}"
+        case "${arg}" in
+            -s|-save|--save)
+                save_path="${ARGS[$(($i+1))]}"
+                i=$((i+1))
+                [[ -z "${save_path}" || ! -f "${save_path}" ]] && {
+                    LOG error "Not a valid path: '${save_path}'"
+                }
+                ;;
+            -s=*|-save=*|--save=*)
+                save_path="${arg#*=}"
+                [[ -z "${save_path}" || ! -f "${save_path}" ]] && {
+                    LOG error "Not a valid path: '${save_path}'"
+                }
+                ;;
+            -e|-encode|--encode|encode|enc)
+                operation="encode"
+                ;;
+            -d|-decode|--decode|decode|dec)
+                operation="decode"
+                ;;
+            *)
+                if [[ -n "${arg}" ]]; then
+                    [[ -z "${input}" ]] && input="${arg}" || {
+                        LOG warn "Two inputs, Ignoring ${arg}"
+                    }
+                fi
+                ;;
+        esac
+    done
+
+    [[ -z "${input}" ]] && {
+        LOG error "Input '${input}' is empty"
+        return 1
+    }
+
+    [[ -n "${save_path}" ]] && {
+        printf "%s: " "Create this file? (y)es|(n)o"
+        read -r YES
+        [[ "${YES}" =~ ^(Yes|yes|y)$ ]] && touch "${save_path}"
+    }
+
+    if [[ ! -f "${input}" ]]; then
+        # RotTransform encode|decode InputType Input FilePath
+        RotTransform "${operation}" "text" "${input}" "${save_path}"
     else
-        echo "[ERROR]: At least two arguments expected"
-        echo "rot13 <encode/decode> <file/string>"
+        # RotTransform encode|decode InputType Input FilePath
+        RotTransform "${operation:-"encode"}" "file" "${input}" "${save_path}"
     fi
 }
 
@@ -251,33 +363,140 @@ function Extract() {
             tar --extract --bzip2 --verbose --file="${archive}"
             ;;
         *)
-            echo "'${archive}' is not tar archieve"
+            LOG error "'${archive}' is not tar archieve"
             ;;
     esac
+}
+
+function MountDrive() {
+    emulate -LR bash
+    RequiredTools 0
+    local -a ARGS=("$@") matches=()
+    local action="${ARGS[0]}" drive="${ARGS[1]}" mountPoint="${ARGS[2]}"
+    local list=0 mount=0 umount=0 show_size=0
+    local -a matches=()
+
+    [[ $# -eq 0 ]] && {
+        LOG error "At least one arguemnt expected"
+        LOG info "$0 <show-size|list|mount|umount> drive"
+        return 1
+    }
+
+    if [[ -n "$action" ]]; then
+        case "$action" in
+            l|-l|-list|--list|list) list=1 ;;
+            s|-s|-show|--show|--show-size|a|about) show_size=1 ;;
+            m|-m|-mount|--mount|mount) mount=1 ;;
+            u|-u|-umount|--umount|umount) umount=1 ;;
+            *) LOG error "Unknown action '${BROWN}$action${NC}'"; return 1 ;;
+        esac
+    fi
+
+    if [[ -n "$drive" ]]; then
+        [[ -n "${drive#*=}" ]] && {
+            drive="${drive#*=}"
+        }
+        [[ -n $BASH_VERSION ]] && mapfile -t matches < <(rclone listremotes | grep --color=never -i "${drive}")
+        [[ -n $ZSH_VERSION ]] && {
+            matches=("$(rclone listremotes | grep --color=never -i ${drive})")
+        }
+
+        if [[ ${#matches[@]} -eq 1 ]]; then
+            drive=${matches[0]}
+        elif [[ ${#matches[@]} -gt 1 ]]; then
+            LOG error "Ambiguous drive name: multiple remotes: '${matches[*]}'"
+            printf "Full Name of the remote: "
+            read -r REMOTE
+            drive="${REMOTE}"
+        else
+            LOG error "No remotes found"
+            return 1
+        fi
+
+        [[ "${drive}" != *: ]] && drive+=:
+        [[ -z "${drive}" ]] && {
+            LOG error "No remotes. Exiting"
+            return 1
+        }
+        LOG info "Remote: ${drive}"
+    fi
+
+    if [[ -n "${mountPoint}" ]]; then
+        [[ -n "${mountPoint#*=}" ]] && {
+            mountPoint="${mountPoint#*=}"
+        }
+        mkdir -p "${mountPoint}"
+        [[ -d "${mountPoint}" ]] || LOG warn "Mount point '${mountPoint}' does not exist"
+    fi
+
+    [[ $list -eq 1 ]] && {
+        rclone listremotes
+    }
+
+    [[ -n "${drive}" ]] || {
+        LOG error "Remote is empty"
+        return 1
+    }
+
+    [[ $mount -eq 1 && $umount -eq 1 ]] && {
+        LOG warn "--mount and --umount cannot be together"
+        return 1
+    }
+
+    [[ $show_size -eq 1 ]] && {
+        rclone about ${drive}
+    }
+
+    if [[ $umount -eq 1 ]]; then
+        [[ -z ${mountPoint} ]] && mountPoint=$(grep "${drive}" --color=always /proc/mounts | cut -d' ' -f2)
+        if [[ -d "${mountPoint}" ]]; then
+            fusermount -uz "${mountPoint}" || echo "Cannot remove '${DIR}'"
+            rm -rf "${mountPoint}" && \
+                echo -e "Cleaned '${mountPoint}'"
+        fi
+        return 0
+    fi
+    if [[ $mount -eq 1 ]]; then
+        mountPoint="${mountPoint:="/tmp/defaultRemoteMount"}"
+        [[ ! -d "${mountPoint}" ]] && mkdir -p "${mountPoint}"
+        if rclone mount "${drive}":/ "${mountPoint}" --daemon; then
+            grep "${mountPoint}" --color=always /proc/mounts
+        fi
+    fi
 }
 
 ### Suppliment function for compilation functions
 function CompilationExitHandler() {
     local exit_code="$1"
     shift
-    local remove="$1"
-    shift
     local no_ext_filename="$1"
     shift
+    local RM=0
+    local -a total_files=()
     [[ $exit_code -gt 0 ]] && {
-        echo "${RED}Compilation Failed${NC}"
-        echo "Program exited with code : $exit_code"
+        LOG error "${RED}Compilation Failed${NC}"
+        LOG error "Program exited with code : $exit_code"
         # Just return if compilation is failed
         return 1
     }
-    "${no_ext_filename}" "$@" # Run the compiled binary
-    [[ "${remove}" =~ ^(rm|remove|r)$ ]] && {
+    for arg in "$@"; do
+        if [[ "${arg}" == -* ]]; then
+            [[ "${arg}" =~ ^(--rm|--remove|-rm|-r)$ ]] && {
+                RM=1
+            }
+        else
+            total_files+=("${arg}")
+        fi
+    done
+    "${no_ext_filename}" "${total_files[@]}" # Run the compiled binary
+
+    if [[ $RM -eq 1 ]]; then
         rm -f "${no_ext_filename}" && {
-            echo -e "Cleaned: ${no_ext_filename}"
+            LOG info "Cleaned: ${no_ext_filename}"
         } || {
-            echo -e "Failed to remove: ${no_ext_filename}"
+            LOG error "Failed to remove: ${no_ext_filename}"
         }
-    }
+    fi
 }
 
 ### C stuff
@@ -287,7 +506,7 @@ function C_cc() {
     shift
     gcc -pedantic -Wall -Wextra -lstdc++ \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "${no_ext_filename}" "$@"
 }
 
 function C_cc_DEBUG() {
@@ -296,7 +515,7 @@ function C_cc_DEBUG() {
     shift
     gcc -pedantic -Wall -Wextra -Werror -DDEBUG -lstdc++ \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "${no_ext_filename}" "$@"
 }
 
 function Cpp_cc() {
@@ -306,7 +525,7 @@ function Cpp_cc() {
     gcc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra \
         -fno-elide-constructors \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "${no_ext_filename}" "$@"
 }
 
 function Cpp_cc_DEBUG() {
@@ -316,7 +535,7 @@ function Cpp_cc_DEBUG() {
     gcc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra \
         -Werror -DDEBUG  -fno-elide-constructors \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "${no_ext_filename}" "$@"
 }
 
 function C_clang() {
@@ -325,7 +544,7 @@ function C_clang() {
     shift
     clang -pedantic -Wall -Wextra \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "${no_ext_filename}" "$@"
 }
 
 function Cpp_clang() {
@@ -334,7 +553,7 @@ function Cpp_clang() {
     shift
     clang++ -pedantic -Wall -Wextra \
         "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "$1" "${no_ext_filename}" "$@"
+    CompilationExitHandler $? "${no_ext_filename}" "$@"
 }
 
 function GUI_BUILD_DEBUG() {
@@ -345,7 +564,7 @@ function GUI_BUILD_DEBUG() {
         -Wshadow -pedantic -O0 -fno-inline -lstdc++ -lglfw -lGL -lglad -lm \
         "${FILE}" -o "${NO_EXT_FILENAME}" && "${NO_EXT_FILENAME}"
     "${NO_EXT_FILENAME}"
-    CompilationExitHandler $? "$1" "${NO_EXT_FILENAME}" "$@"
+    CompilationExitHandler $? "${NO_EXT_FILENAME}" "$@"
 }
 
 function GUI_BUILD_RELEASE() {
@@ -357,7 +576,7 @@ function GUI_BUILD_RELEASE() {
         -lstdc++ -lglfw -lGL -lglad -lm \
         "${FILE}" -o "${NO_EXT_FILENAME}" && "${NO_EXT_FILENAME}"
     "${NO_EXT_FILENAME}"
-    CompilationExitHandler $? "$1" "${NO_EXT_FILENAME}" "$@"
+    CompilationExitHandler $? "${NO_EXT_FILENAME}" "$@"
 }
 
 ### Lauch sway Window manager with vulkan
@@ -381,7 +600,7 @@ function sway_vulkan() {
     export WLR_NO_HARDWARE_CURSORS=1
     # Tells wlroots which GPU device to use for DRM rendering
     # export WLR_DRM_DEVICES=/dev/dri/card0:/dev/dri/card1
-    export WLR_DRM_DEVICES=/dev/dri/card0
+    export WLR_DRM_DEVICES=/dev/dri/card0:/dev/dri/card1
     # Forces wlroots to use Vulkan renderer.
     # gles2 for opengl or pixman CPU only
     export WLR_RENDERER=vulkan
@@ -389,12 +608,36 @@ function sway_vulkan() {
     export XDG_CURRENT_DESKTOP=sway
     export DESKTOP_SESSION=sway
     /usr/bin/sway &> "$LOG_FILE" && {
-        echo -e "Sway was started with $WLR_DRM_DEVICES"
+        LOG info "Sway was started with $WLR_DRM_DEVICES"
     } || {
-        echo -e "Sway cannot start with $WLR_DRM_DEVICES"
+        LOG error "Sway cannot start with $WLR_DRM_DEVICES"
         [[ -s "$LOG_FILE" ]] && cat "$LOG_FILE"
     }
 }
+
+function SetPath() {
+    PATH+=: PATH+="/usr/local/bin:/usr/local/sbin:/usr/sbin:/sbin:/bin"
+    PATH+=: PATH+="${HOME}/.bin"
+    PATH+=: PATH+="${HOME}/.cargo/bin:${HOME}/.npm-global/bin:${BREW}/bin"
+
+    local tmp_path="/tmp/.home.path"
+    if [[ ! -s "${tmp_path}" ]] ;then
+        echo "$PATH" &> "${tmp_path}"
+    else
+        PATH="$(cat ${tmp_path})"
+        export PATH
+    fi
+}; SetPath
+
+function SshAgent() {
+    local ssh_agent="/tmp/.ssh_agent"
+    if [[ ! -s "${ssh_agent}" ]]; then
+        touch "${ssh_agent}"
+        echo "$(ssh-agent -s)" > "${ssh_agent}"
+    else
+        source ${ssh_agent} &> /dev/null
+    fi
+}; SshAgent
 
 ### Update my Arch Linux
 function Update() {
@@ -415,12 +658,16 @@ function Update() {
     fi
 }
 
+function RandomColors() {
+    local format="$1"
+    pastel random | pastel format "${format:-"hex"}"
+}
+
 ### ScreenShots by grim
 function sc() {
     local -r SC="${HOME}/Grim_Screenshots"
     if [[ -d "${SC}" ]]; then
         cd "${SC}"
-
         if command -v imv 1> /dev/null 2>&1 ; then
             imv * &> /dev/null &
             disown
@@ -435,8 +682,8 @@ function sc() {
 
 ### Terminal file explorer
 function y() {
-    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
-    /usr/bin/yazi "$@" --cwd-file="$tmp"
+    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd=
+    yazi "$@" --cwd-file="$tmp"
     if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
         builtin cd -- "$cwd"
     fi
@@ -446,7 +693,7 @@ function y() {
 ### Terminal file explorer with cd tracking
 function yc() {
     clear
-    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd=
     yazi "$@" --cwd-file="$tmp"
     if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
         builtin cd -- "$cwd"
@@ -476,13 +723,13 @@ function Yt-dlp_download() {
 
 function Ip() {
     command -v curl &> /dev/null || {
-        echo -e "[${RED}ERROR${NC}]: curl not installed"
+        LOG error "'curl' not installed"
         return 1
     }
     if command -v bat &> /dev/null; then
         bat --decorations=never --color=always --paging=never --language json <<< $(curl -s -4 ipinfo.io)
     else
-        echo -e "[${RED}ERROR${NC}]: bat not installed"
+        LOG warn "'bat' not installed"
         curl -4 ipinfo.io
     fi
 }
@@ -491,11 +738,6 @@ function Ip() {
 function UpdateGrub() {
     sudo grub-mkconfig -o /boot/grub/grub.cfg
 
-}
-
-### Update grub
-function GrubUpdate() {
-    sudo grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 ### Lauch steam with Nvidia

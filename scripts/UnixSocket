@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SCRIPT_PATH="$(realpath "$0")"
 CURRENT_PID=$$
 
 pgrep -f "${SCRIPT_PATH}" | grep -v "^${CURRENT_PID}\$" | xargs -r kill
 
-SOCKET="/tmp/mpv_socket"
+SOCKET="/tmp/.mpv_socket"
 
 rm -f "$SOCKET"
 

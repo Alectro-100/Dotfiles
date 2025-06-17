@@ -2,10 +2,10 @@
 gaps inner 4
 
 ### Defaut Font
-font pango: SourceCodePro Large 6
+font pango: SourceCodePro Large 4
 
 ### Start foot server
-exec --no-startup-id foot --server=/tmp/foot.sock
+exec_always --no-startup-id foot --server=/tmp/.foot.sock
 
 ### Policykit agent
 exec --no-startup-id /usr/lib/polkit-kde-authentication-agent-1
@@ -13,15 +13,18 @@ exec --no-startup-id /usr/lib/polkit-kde-authentication-agent-1
 ### Autotiling
 exec --no-startup-id autotiling
 
+### Autotiling
+exec --no-startup-id ${HOME}/.scripts/something
+
 ### What's being played now?, show it in the waybar
-exec --no-startup-id $HOME/.bin/NowPlaying
+exec_always --no-startup-id ${HOME}/.bin/NowPlaying
 
 ### Easyeffects
 exec --no-startup-id bash -c \
       '$( (swaymsg exec flatpak run com.github.wwmm.easyeffects) ; sleep 5 ; swaymsg "[app_id="com.github.wwmm.easyeffects"] move scratchpad" )'
 
 ### Sway lock
-exec --no-startup-id swayidle -w \
+exec_always --no-startup-id swayidle -w \
         timeout 120 ".config/sway/lock_screen/lock_screen" \
         resume "swaymsg 'output * power on'" \
         before-sleep "swaylock --daemonize --image $HOME/.config/sway/lock_screen/bg.jpg"
@@ -31,8 +34,8 @@ bar {
     swaybar_command waybar
 }
 
-### Mod1 for Alt key. Mod4 for Win key
-set $mod Mod4
+### Set $mod (Mod4 or Super) for logo key
+set $mod Super
 
 ### Vim bindings everywhere
 set $left h
@@ -60,14 +63,18 @@ set $menu_rofi rofi -show-icons -font Hack -theme material -show drun
         color_profile icc /usr/share/color/icc/colord/sRGB.icc
     }
 
-### Cursor will go vanish in 6 seconds (Seat devices)
-    ## seat value must be specified in milliseconds
-    seat * hide_cursor 1000
-
 ### Enable Xwayland
 xwayland enabled
 
 ### Input devices
+
+
+    # Hide cursor in 1 secs
+    seat * {
+        hide_cursor 1000
+        hide_cursor when-typing enable
+        pointer_constraint enable
+    }
 
     # Any Keyboard
     input type:keyboard {
@@ -79,20 +86,24 @@ xwayland enabled
     # Optical Mouse
     input 12538:768:USB_Optical_Mouse {
         natural_scroll disabled
-        pointer_accel 1
         dwt enabled
         accel_profile adaptive
+        scroll_factor 2
+        pointer_accel 1
     }
 
     # Any Trackpad
     input type:touchpad {
-        accel_profile adaptive
-        click_method clickfinger
-        drag_lock disabled
+        accel_profile adaptive   # trackpad acceleration
+        click_method clickfinger # Clickfinger
+        middle_emulation enabled # Enable middle emulation
+        drag_lock disabled       # Disable drag lock
         dwt enabled              # disable while typing
         natural_scroll enabled   # Inverted scroll
         tap enabled              # enable taps (should not be disabled)
         tap_button_map lrm       # lmr {(1 finger tap left click) (2 finger tap right click) (3 finger tap middle click)}
+        scroll_method two_finger
+        scroll_factor 2
         pointer_accel 1
         drag enabled
     }
@@ -102,12 +113,13 @@ xwayland enabled
 
     # Bring my Text-fu terminal
     # foot
-    bindsym $mod+Return exec footclient --server-socket=/tmp/foot.sock
+    bindsym $mod+Return exec footclient --server-socket=/tmp/.foot.sock
     # alacritty
     bindsym $mod+Shift+Return exec alacritty
 
     # Good File Manager
-    bindsym Alt+E exec bash -c "XDG_CURRENT_DESKTOP=KDE GTK_THEME=Adwaita:dark QT_QPA_PLATFORMTHEME=qt6 dolphin"
+    bindsym Alt+E exec XDG_CURRENT_DESKTOP=kde GTK_THEME=Adwaita:dark QT_QPA_PLATFORMTHEME=qt6 dolphin
+    bindsym $mod+E exec XDG_CURRENT_DESKTOP=kde nautilus
 
     # Kill the focused windows because sometimes it feels good
     bindsym $mod+q kill
@@ -117,7 +129,7 @@ xwayland enabled
     bindsym Alt+Space exec $menu_wofi
     bindsym Alt+Shift+Space exec $menu_rofi
 
-    bindsym $mod+N exec $HOME/.config/waybar/scripts/application_launcher
+    bindsym $mod+D exec $HOME/.config/waybar/scripts/application_launcher
 
     # Mouse for dragging.
     floating_modifier $mod normal
@@ -169,17 +181,21 @@ xwayland enabled
 
 
 ### Layout stuff:
-    # decide the spawn side of the new window
-    bindsym $mod+B splith
-    bindsym $mod+V splitv
-    # Toggle btween splith and splitv
-    bindsym $mod+TAB splitt
-    # Pop the stacking window from the container
-    bindsym $mod+U split none
+    # Initial layout in a new an empty workspace
+    workspace_layout default
     # Switch the current container between different layout styles
     bindsym $mod+S layout stacking
-    bindsym $mod+W layout tabbed
-    bindsym $mod+E layout toggle split
+    bindsym $mod+T layout tabbed
+    # decide the spawn side of the new window
+    # bindsym $mod+B split horizontal
+    # bindsym $mod+V split vertical
+
+    # Toggle btween splith and splitv
+    bindsym $mod+V split toggle
+    # toggle split mode (Stacking, tabbed, and last split layout)
+    bindsym $mod+B layout toggle split
+    # Pop the stacking window from the container
+    bindsym $mod+N split none
     # Fullscreen!
     bindsym $mod+F fullscreen
     # Jump the focus between tiling and floating mode
@@ -225,6 +241,11 @@ xwayland enabled
 
     ## Win+Alt or $mod+Alt keybindings for systemctl related settings
 
+    # Edit this config with neovim or vim
+    bindsym $mod+I exec bash -c \
+        '$(CONF="${HOME}/.config/sway/config"; command -v nvim && EDIT=nvim || EDIT=vim; \
+            foot -e $EDIT --clean --noplugin -c "colorscheme slate\nset nu\nset relativenumber" "${CONF}")'
+
     # What's my selected screen resolution?
     bindsym $mod+Shift+G exec bash -c \
         '$(Res="$(slurp)" && notify-send "${Res}")'
@@ -258,11 +279,11 @@ xwayland enabled
         '$(systemctl hybrid-sleep --now)'
 
     # Execute whatever the hell that script does
-    bindsym $mod+Z exec bash -c \
+    bindsym Tab+Z exec bash -c \
         '$(foot -e $HOME/.scripts/exec_me)'
 
     # Journal time: Let's document the mess
-    bindsym Alt+J exec bash -c \
+    bindsym Tab+J exec bash -c \
         '$(foot -e $HOME/.bin/JournalToday nvim)'
 
     # List of Emojies in rofi-emoji
@@ -312,7 +333,6 @@ xwayland enabled
 
     ### Window rules
     for_window {
-
         # Set opacity for all windows
         [app_id=".*"] opacity 0.98
         # Border of newly spawned window
@@ -328,11 +348,20 @@ xwayland enabled
         [app_id="^org.kde.okular$|^org.qutebrowser.qutebrowser$|^org.kde.kclock$"] floating enable
         [class="^Brave-browser$|^ZapZap$|^discord$"] floating enable
     }
-    # Border padding
-    titlebar_padding 1
+    # Thickness of the titlebar border in pixels
+    titlebar_border_thickness 0
+    # Padding of the text in the titlebar
+    titlebar_padding 0
     # <outer-border-color> <frame-color> <title-text-color> <next-tiling-indicator-color>
     client.focused #333333 #6600AA #DDDDDD #6600AA
     client.unfocused #333333 #666666 #DDDDDD #666666
+    # Align titlebar text
+    title_align center
+    # Default border
+    default_border none
+    # Hide the titlebar on stacked or tabbed containers with one child
+    hide_edge_borders --i3 none
+
 
 ### Additional configuration
 include /etc/sway/config.d/*

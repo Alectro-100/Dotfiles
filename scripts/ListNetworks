@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 IW="$1"
 
-[[ -n $IW ]] && sudo iw dev wlo1 scan | grep SSID: | awk -F' ' '{print $2}' || /usr/bin/nmcli device wifi list
+[[ -n $IW ]] && sudo iw dev wlo1 scan | grep --color=always -E "SSID:|BSS" | grep -E -v "\*|Load|Overlapping" || nmcli device wifi list
 

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+# ── Color definitions ───────────────────────────────────────────
+HL="\033[1m"
+NC="\033[0m"
+MSG_COL="\033[38;2;255;240;200m"
+RED="\033[38;2;255;0;0m"
+
+# ── Default configuration ───────────────────────────────────────
+CONCURRENT_DOWNLOADS=4
+DOWNLOAD_DIRECTORY="$(realpath .)"
+PLAYLIST_URL=""
+
+# ── Message helpers ─────────────────────────────────────────────
+INFO()  { printf "%b\n" "[${HL}*${NC}] ${MSG_COL}$1${NC}"; }
+ERROR() { printf "%b\n" "[${RED}!${NC}] $1"; exit 1; }
+
+# ── Usage info ──────────────────────────────────────────────────
+Usage() {
+    printf "%b\n" \
+        "${HL}Usage${NC}: $(basename "$0") [options] <YouTube-Playlist-URL>" "" \
+        "${MSG_COL}Options:${NC}" \
+        "  -o <dir>      Set custom output directory" \
+        "  -h, --help    Show this help message" "" \
+        "${MSG_COL}Example:${NC}" \
+        "  $(basename "$0") -o ~/Music 'https://youtube.com/playlist?list=xyz123'" ""
+    exit 0
+}
+
+# ── Argument parsing ────────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o)
+            shift
+            [[ -z "$1" ]] && ERROR "Missing directory after -o"
+            DOWNLOAD_DIRECTORY="$(realpath "$1")"
+            ;;
+        -h|--help)
+            Usage
+            ;;
+        *)
+            PLAYLIST_URL="$1"
+            ;;
+    esac
+    shift
+done
+
+# ── Checks ──────────────────────────────────────────────────────
+[[ -z "$PLAYLIST_URL" ]] && ERROR "No playlist URL provided."
+[[ ! -d "${DOWNLOAD_DIRECTORY}" ]] && ERROR "Directory '${DOWNLOAD_DIRECTORY}' doesn't exist."
+cd "${DOWNLOAD_DIRECTORY}" || ERROR "Cannot enter '${DOWNLOAD_DIRECTORY}'"
+
+# ── Download logic ──────────────────────────────────────────────
+INFO "Downloading into: ${DOWNLOAD_DIRECTORY}"
+INFO "Playlist: ${PLAYLIST_URL}"
+
+yt-dlp \
+    -f "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio" \
+    -N "$CONCURRENT_DOWNLOADS" \
+    --embed-thumbnail --convert-thumbnails jpg \
+    --add-metadata \
+    --metadata-from-title "%(artist)s - %(title)s" \
+    --yes-playlist \
+    -o "%(title).150s.%(ext)s" \
+    "$PLAYLIST_URL"
+

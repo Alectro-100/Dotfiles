@@ -2,8 +2,6 @@
 
 IMAGE_NAME=""
 
-CONTAINER_NAME="$1"
-shift
 ARGS=("$@")
 
 VOLUME_NAME=""
@@ -17,32 +15,29 @@ ORANGE="\033[38;2;255;184;64m"
 BLUE="\033[38;2;98;192;244m"
 NC="\033[0m"
 
-function INFO() {
-    echo -e "[${GREEN}*${NC}]: $1"
-}
-
-function WARN() {
-    echo -e "[${ORANGE}?${NC}]: $1"
-}
-
-function ERROR() {
-    echo -e "[${RED}!${NC}]: $1"
-    exit 1
+function LOG() {
+    local _type="$1"
+    shift
+    case "$_type" in
+        info) echo -e "[${GREEN}*${NC}]: $1" ;;
+        warn) echo -e "[${ORANGE}?${NC}]: $1" ;;
+        error) echo -e "[${RED}!${NC}]: $1" ; exit 1; ;;
+    esac
 }
 
 function StopDocker() {
     if systemctl --quiet is-active docker; then
-        INFO "Stopping docker services"
+        LOG info "Stopping docker services"
         sudo systemctl --quiet stop docker.service docker.socket
-        INFO "Services stopped"
+        LOG info "Services stopped"
     else
-        INFO "Docker services are already stopped"
+        LOG info "Docker services are already stopped"
     fi
 }
 
 function StartDocker() {
     if ! systemctl --quiet is-active docker; then
-        INFO "Starting docker services"
+        LOG info "Starting docker services"
         sudo systemctl --quiet start docker
     fi
 }
@@ -74,32 +69,74 @@ function CreateContainer() {
     "${IMAGE_NAME}"
 }
 
-for (( i=0 ; i < ${#ARGS[@]} ; i++ )); do
+function Usage() {
+    printf "%b\n" \
+        "${GREEN}Docker - Manage Docker containers with convenience${NC}" \
+        "" \
+        "Usage:" \
+        "  $(basename "$0") [OPTIONS] CONTAINER_NAME" \
+        "" \
+        "Options:" \
+        "  --start               Start Docker services" \
+        "  --stop                Stop Docker services" \
+        "  -img, --img, --image  Specify Docker image name" \
+        "  -vol, --vol, --volume Specify Docker volume name" \
+        "  -h, --help            Show this help message and exit" \
+        "" \
+        "Description:" \
+        "  This script helps manage Docker containers by starting/stopping Docker," \
+        "  pulling images, creating volumes, and attaching to containers." \
+        "" \
+        "Example:" \
+        "  $(basename "$0") --start" \
+        "  $(basename "$0") -img=ubuntu -vol=mydata mycontainer" \
+        "" \
+        "If no image or volume is specified, CONTAINER_NAME will be used as the default." \
+        ""
+}
+
+for (( i=0 ; i < ${#ARGS[@]}; i++ )); do
     arg="${ARGS[$i]}"
     case "${arg}" in
-        --stop|stop)
-            StopDocker || ERROR "Cannot stop Docker services"
+        --stop)
+            StopDocker || LOG error "Cannot stop Docker services"
             ;;
-        --start|start)
-            StartDocker || INFO "Docker services are already stopped"
+        --start)
+            StartDocker || LOG info "Docker services are already stopped"
+            ;;
+        -img=*|--img=*|--image=*)
+            IMAGE_NAME="${arg#*=}"
+            NO_IMAGE=0
             ;;
         -img|--img|--image)
             IMAGE_NAME="${ARGS[$((i+1))]}"
             NO_IMAGE=0
             i=$((i+1))
             ;;
+        -vol=*|--vol=*|--volume=*)
+            VOLUME_NAME="${arg#*=}"
+            NO_VOLUME=0
+            ;;
         -vol|--vol|--volume)
             VOLUME_NAME="${ARGS[$((i+1))]}"
             NO_VOLUME=0
             i=$((i+1))
             ;;
+        -h|--help)
+            Usage
+            exit 0
+        ;;
+        *)
+            if [[ -z "$CONTAINER_NAME" ]]; then
+                CONTAINER_NAME="${arg:-"NO_CONTAINER-"}"
+            else
+                LOG warn "Multiple container names specified, ignoring: $arg"
+            fi
+            ;;
     esac
 done
 
-if [[ ${CONTAINER_NAME} == "stop" ]]; then
-    StopDocker || ERROR "Cannot stop Docker services"
-    exit 0
-fi
+[[ "$CONTAINER_NAME" =~ ^(NO_CONTAINER-)$ || -z "$CONTAINER_NAME" ]] && exit 0
 
 # Validate input
 [[ $VOLUME_NAME -eq 1 ]] && VOLUME_NAME="$CONTAINER_NAME"
@@ -111,7 +148,7 @@ StartDocker
 # Ensure volume exists
 if [[ $NO_VOLUME -eq 0 ]]; then
     if ! docker volume inspect "${VOLUME_NAME}" &> /dev/null; then
-        INFO "Creating volume ${VOLUME_NAME}"
+        LOG info "Creating volume ${VOLUME_NAME}"
         docker volume create "${VOLUME_NAME}"
     fi
 fi
@@ -119,28 +156,28 @@ fi
 # Ensure image is available
 if [[ $NO_IMAGE -eq 0 ]]; then
     if ! docker image inspect "${IMAGE_NAME}" &> /dev/null; then
-        INFO "Pulling image ${IMAGE_NAME}"
+        LOG info "Pulling image ${IMAGE_NAME}"
         docker pull "${IMAGE_NAME}"
     fi
 fi
 
 # Check if container exists or not
 if ! docker inspect "$CONTAINER_NAME" &> /dev/null; then
-    ERROR "Container ${BLUE}${CONTAINER_NAME}${NC} not found."
+    LOG error "Container ${BLUE}${CONTAINER_NAME}${NC} not found."
 fi
 
 # Check if container is running
 if docker ps --filter "name=^/${CONTAINER_NAME}$" --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
-        INFO "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
-        ExecIntoContainer || ERROR "Cannot start container ${BLUE}${CONTAINER_NAME}${NC}"
+        LOG info "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
+        ExecIntoContainer || LOG error "Cannot start container ${BLUE}${CONTAINER_NAME}${NC}"
 else
     # Try to start existing container, else create a new one
     if docker start "$CONTAINER_NAME" &>/dev/null; then
-        INFO "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
-        ExecIntoContainer || ERROR "Cannot start container ${BLUE}${CONTAINER_NAME}${NC}"
+        LOG info "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
+        ExecIntoContainer || LOG error "Cannot start container ${BLUE}${CONTAINER_NAME}${NC}"
     else
-        INFO "Creating new container instance of ${BLUE}${CONTAINER_NAME}${NC}"
-        CreateContainer || ERROR "Failed to create container from image ${IMAGE_NAME}"
+        LOG info "Creating new container instance of ${BLUE}${CONTAINER_NAME}${NC}"
+        CreateContainer || LOG error "Failed to create container from image ${IMAGE_NAME}"
     fi
 fi
 

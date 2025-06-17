@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 flags="$@"
 SESSION_FILE="/tmp/.BW_SESSION"

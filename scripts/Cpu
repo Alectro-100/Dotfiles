@@ -1,100 +1,111 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SCRIPT_NAME=$(basename "$0")
-RED="\033[38;2;244;0;0m"
-GREEN="\033[38;2;0;244;0m"
+
+HL="\033[1m"
+MSG_COL="\033[38;2;255;240;200m"  # subtle off-white-yellowish for info
+ERR_COL="\033[38;2;244;0;0m"      # red for errors
 NC="\033[0m"
 
+INFO()   { printf "%b[INFO]%b %b\n" "${HL}" "${NC}" "${MSG_COL}$*${NC}"; }
+ERROR()  { printf "%b[ERROR]%b %b\n" "${HL}" "${NC}" "${ERR_COL}$*${NC}"; exit 1; }
+WARN()   { printf "%b[WARN]%b %b\n" "${HL}" "${NC}" "${ERR_COL}$*${NC}"; }
+LOG()    { printf "%b[LOG]%b %b\n" "${HL}" "${NC}" "${MSG_COL}$*${NC}"; }
+
 function usage() {
-    echo "Usage:"
-    echo "  $SCRIPT_NAME gov              # Show available and current governors"
-    echo "  $SCRIPT_NAME dump             # Dump CPU and power info"
-    echo "  $SCRIPT_NAME set_gov <gov>    # Set all CPUs to given governor"
-    exit 1
+  printf "%b\n" \
+    "Usage:" \
+    " ${HL}$SCRIPT_NAME gov${NC}             Show available and current CPU governors" \
+    " ${HL}$SCRIPT_NAME dump${NC}            Dump CPU and power info (via upower)" \
+    " ${HL}$SCRIPT_NAME set_gov <gov>${NC}   Set all CPUs to the given governor" \
+    " ${HL}$SCRIPT_NAME boost <on|off>${NC}  Enable or disable CPU boost" \
+    ""
 }
 
-[[ $# -eq 0 ]] && usage
-
 function set_cpu_governor() {
-    governor="$1"
-    for governors in $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors); do
-        if [[ ${governor} == "$governors" ]]; then
-            for cpu in /sys/devices/system/cpu/cpu[0-9]*; do
-                sudo bash -c "echo ${governor} 1> ${cpu}/cpufreq/scaling_governor"
-                printf "${cpu}/cpufreq/scaling_governor: "
-                cat "${cpu}/cpufreq/scaling_governor"
-            done
-            return
-        fi
-    done
-    echo "Invalid governer: '${governor}'"
+  local governor="$1"
+  local available_governors
+  read -r -a available_governors < /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+
+  for gov in "${available_governors[@]}"; do
+    if [[ $governor == "$gov" ]]; then
+      INFO "Setting CPU governor to '$governor' for all CPUs"
+      for cpu_path in /sys/devices/system/cpu/cpu[0-9]*; do
+        sudo bash -c "echo $governor > $cpu_path/cpufreq/scaling_governor"
+        printf "%b: %s\n" "${MSG_COL}${cpu_path}/cpufreq/scaling_governor${NC}" "$(cat "$cpu_path/cpufreq/scaling_governor")"
+      done
+      return 0
+    fi
+  done
+  ERROR "Invalid governor: '$governor'. Use one from: ${available_governors[*]}"
 }
 
 function dump_cpu() {
-    upower --dump
+  INFO "Dumping CPU and power info (requires upower)"
+  upower --dump
 }
 
 function cpu_boost() {
-    local state="$1"
-    case "$state" in
-        on|1)
-            sudo bash -c "echo 1 1> /sys/devices/system/cpu/cpufreq/boost 2> /dev/null"
-            echo -e "${GREEN}boost enabled${NC}"
-            ;;
-        off|0)
-            sudo bash -c "echo 0 1> /sys/devices/system/cpu/cpufreq/boost 2> /dev/null"
-            echo -e "${RED}boost disabled${NC}"
-            ;;
-            *)
-            echo "Invalid boost options: use on|off"
-            ;;
-    esac
+  local state="$1"
+  case "$state" in
+    on|1)
+      sudo bash -c "echo 1 > /sys/devices/system/cpu/cpufreq/boost" 2>/dev/null
+      INFO "CPU boost enabled"
+      ;;
+    off|0)
+      sudo bash -c "echo 0 > /sys/devices/system/cpu/cpufreq/boost" 2>/dev/null
+      INFO "CPU boost disabled"
+      ;;
+    *)
+      ERROR "Invalid boost option: use 'on' or 'off'"
+      ;;
+  esac
 }
 
 function cpu_governors() {
-    printf "Available CPU governors: "
-    cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 1> /dev/stdout 2>&1
-    printf "Current governor: \n"
-    grep --color=always . /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | sort
+  printf "%bAvailable CPU governors:%b " "${HL}" "${NC}"
+  cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+  printf "%bCurrent governors per CPU:%b\n" "${HL}" "${NC}"
+  grep --color=always . /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | sort
 }
 
-
-while [[ $# -ne 0 ]]; do
-    case $1 in
+function main() {
+    [[ $# -eq 0 ]] && usage
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
         gov|governors)
-            shift
-            cpu_governors
-            shift
-            exit 0
-            ;;
+          shift
+          cpu_governors
+          exit 0
+          ;;
         dump)
-            shift
-            dump_cpu
-            shift
-            exit 0
-            ;;
+          shift
+          dump_cpu
+          exit 0
+          ;;
         boost)
-            shift
-            [[ -z $1 ]] && {
-                echo "Missing argument. usage: ${SCRIPT_NAME} boost <on|1|off|0>"
-                exit 1
-            }
-            cpu_boost $1
-            shift
-            ;;
+          shift
+          [[ -z $1 ]] && ERROR "Missing argument. Usage: $SCRIPT_NAME boost <on|off>"
+          cpu_boost "$1"
+          exit 0
+          ;;
         set_gov|set_governor)
-            shift
-            [[ -z $1 ]] && {
-                echo "Missing argument. usage: ${SCRIPT_NAME} set_gov <$( cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | sed 's/\ /\|/g' )>"
-                exit 1
-            }
-            set_cpu_governor "$1"
-            shift
-            exit 0
-            ;;
+          shift
+          [[ -z $1 ]] && {
+            local options
+            options=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | sed 's/ /|/g')
+            ERROR "Missing argument. Usage: $SCRIPT_NAME set_gov <$options>"
+          }
+          set_cpu_governor "$1"
+          exit 0
+          ;;
         *)
-            usage
-            ;;
-    esac
-done
+          usage
+          exit 0
+          ;;
+      esac
+    done
+}
+
+main "$@"
 

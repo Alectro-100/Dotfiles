@@ -1,16 +1,24 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+trap Exit SIGINT SIGTERM
 
 SCRIPT_PATH="$(realpath "$0")"
 CURRENT_PID=$$
 
 pgrep -f "${SCRIPT_PATH}" | grep -v "^${CURRENT_PID}\$" | xargs -r kill
 
-MPV_SOCKET="/tmp/mpv_socket"
+MPV_SOCKET="/tmp/.mpv_socket"
 isPlaying=0
 title=""
 artist=""
 album=""
 combined=""
+
+function Exit() {
+    printf "\n"
+    printf "%b" "Exiting... Bye!\n"
+    exit 0
+}
 
 function CheckPlay() {
     PLAYERS=($(playerctl --list-all | tr '\n' ' '))
@@ -56,6 +64,6 @@ while true; do
         echo "You are not playing anything"
         echo '{"text": "", "class": "inactive"}' | socat - UNIX-CONNECT:"${MPV_SOCKET}"
     }
-    sleep 0.5
+    sleep 0.3
 done
 

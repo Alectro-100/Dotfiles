@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -44,8 +44,8 @@ MSG=""
 ### File to file Copy
 declare -A FILES_TO_COPY=(
     ["/etc/vimrc"]="${GIT_DIR}/vim/vimrc"
-    ["/etc/xdg/nvim/sysinit.vim"]="${GIT_DIR}/neovim/init.vim"
-    ["${HOME}/.SHELL_RC"]="${GIT_DIR}/shell/SHELL_RC"
+    ["/etc/xdg/nvim/init.vim"]="${GIT_DIR}/neovim/init.vim"
+    ["${HOME}/.shell_rc"]="${GIT_DIR}/shell/SHELL_RC"
     ["${HOME}/.bashrc"]="${GIT_DIR}/shell/bashrc"
     ["${HOME}/.config/foot/foot.ini"]="${GIT_DIR}/foot/foot.ini"
     ["${HOME}/.config/alacritty/alacritty.toml"]="${GIT_DIR}/alacritty/alacritty.toml"
@@ -222,6 +222,34 @@ function Cleanup() {
     ERROR "${RED}Sync interrupted. Clean up manually.${NC}" && exit 1
 }
 
+function Usage() {
+    printf "%b\n" \
+    "${HL}Backup - Your Dotfiles Backup and Sync Script${NC}" \
+    "" \
+    "Usage:" \
+    "  BackUp [options]" \
+    ""  \
+    "Options:" \
+    "  -h, --help            Show this help message and exit" \
+    "  -v, --verbose         Set verbose output (LOG_LEVEL=1)" \
+    "  -l=N, --log=N         Set log level (0=none, 1=error, 2=info, 3=debug)" \
+    "  -d, --debug           Enable debug level logging (LOG_LEVEL=3)" \
+    "  -g, --git-status      Show git status of your dotfile repo after backup" \
+    "  -c DIR, --clone DIR   Clone your dotfile repo to specified DIR (local path)" \
+    "  -m MSG, --msg MSG     Commit message for git push" \
+    "  -p, --push            Push changes to your remote GitHub repository" \
+    "  --force               Force git push with --force flag" \
+    ""  \
+    "Description:" \
+    "  This script copies your important config files and directories into a" \
+    "  local git repository (${BLUE}${GIT_DIR}${NC}) for backup and version control." \
+    "  You can optionally clone your dotfiles repo, push changes, and see git status." \
+    "" \
+    "GitHub repo info:" \
+    "  Username: ${BLUE}${USERNAME}${NC}" \
+    "  Repository: ${BLUE}${REPO_NAME}${NC}"
+}
+
 trap Cleanup SIGINT SIGTERM
 
 for (( i=0 ; i < ${#FLAGS_ARRAY[@]} ; i++ )); do
@@ -282,6 +310,10 @@ for (( i=0 ; i < ${#FLAGS_ARRAY[@]} ; i++ )); do
                 FORCE="--force"
                 DEBUG_LOG "Forcing push"
                 ;;
+            -h|--help|help)
+                Usage
+                exit 0
+                ;;
             *)
                 ERROR "Invalid flag: $arg"
                 ;;
@@ -318,8 +350,6 @@ DEBUG_LOG "Using GIT_STATUS=$GIT_STATUS"
 DEBUG_LOG "Using LOG_LEVEL=$LOG_LEVEL"
 DEBUG_LOG "Using SYNC_=$SYNC_"
 
-echo && INFO "Dotfile directory: ${BLUE}${GIT_DIR}${NC}\n"
-
 # Start copying all the files to the destination
 for src in "${!FILES_TO_COPY[@]}"; do
     CopyFiles "${src}" "${FILES_TO_COPY[$src]}"
@@ -334,6 +364,8 @@ if [[ ${GIT_STATUS} -eq 1 ]]; then
     cd ${GIT_DIR}
     git status
 fi
+
+echo && INFO "Dotfile directory: ${BLUE}${GIT_DIR}${NC}\n"
 
 [[ $SHOULD_PUSH -eq 1 ]] && {
     PushRepo

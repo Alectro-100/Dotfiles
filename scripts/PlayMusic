@@ -4,8 +4,10 @@ IFS=$'\n'
 ARGUMENTS=("$@")
 RED="\033[38;2;244;10;10m"
 GREEN="\033[38;2;80;250;100m"
+WARN="\033[38;2;233;98;116m"
 BROWN="\033[38;2;240;120;120m"
 LIGHT_SKIN="\033[38;2;255;230;180m"
+MUDDY="\033[38;2;195;158;151m"
 GREY="\033[38;2;160;160;140m"
 BLUE="\033[38;2;150;134;255m"
 NC="\033[0m"
@@ -13,12 +15,12 @@ NC="\033[0m"
 declare -a  mpv_flags=()
 MUSIC_DIRECTORY="\${HOME}/Music"
 MUSIC_DIR="$(eval echo ${MUSIC_DIRECTORY})"
+QUIET=
 SELECTED=()
 CURRENTLY_PLAYING=()
-video=
 LOOP=0
 FULL_LOOP=0
-QUIET=
+SHUFFLE=0
 
 # LOOP: Set if user selected more than 1 file (triggers script-level for-loop playback)
 # FULL_LOOP: Set only if user passed --loop (mpv handles all track looping internally)
@@ -44,27 +46,59 @@ function LOG() {
     case "${type_}" in
         info)
             color="${GREEN}"
-            [[ -z "${QUIET}" ]] && echo -e "[${color}INFO${NC}]: $@"
+            [[ -z "${QUIET}" ]] && echo -e "[${color}*${NC}]: $@"
+            ;;
+        warn)
+            color="${WARN}"
+            echo -e "[${color}^${NC}]: $@"
             ;;
         error)
             color="${RED}"
-            echo -e "[${color}ERROR${NC}]: $@"
+            echo -e "[${color}!${NC}]: $@"
             ;;
     esac
 }
 
-function PlayMusic() {
+function Usage() {
+    printf "%b\n" \
+        "" \
+        " ${MUDDY}Usage:${NC} PlayMusic [OPTIONS]" \
+        "" \
+        " ${MUDDY}Options:${NC}" \
+        "   -vid, --video           Enable video output (default: no)" \
+        "   -vol=N, --volume=N      Set volume (default: 65)" \
+        "   -q, --quiet             Suppress MPV output" \
+        "   -l, --loop              Enable full playlist loop" \
+        "   -s, --shuffle           Shuffle selected tracks (only with --loop)" \
+        "" \
+        " ${MUDDY}Behavior:${NC}" \
+        "   🔹 Uses ${BLUE}fzf${NC} to pick music from '${LIGHT_SKIN}${MUSIC_DIRECTORY}${NC}'" \
+        "   🔹 Supports all major audio formats" \
+        "   🔹 Applies optimized mpv flags (hardware decoding, mpris, hdr, etc.)" \
+        "" \
+        " ${MUDDY}Examples:${NC}" \
+        "   PlayMusic                  # Launch, pick music, play (loop each)" \
+        "   PlayMusic --loop --shuffle  # Full loop with random shuffle" \
+        "   PlayMusic --vol=45          # Set volume to 45" \
+        "" \
+        " ${BROWN}Note:${NC} Shuffle does nothing without multiple files & --loop." \
+        ""
+}
+
+function TurnMusicOn() {
     local files_joined=("$@")
     local f=""
+    local track_num=0
 
     if [[ $FULL_LOOP -eq 1 ]]; then
+        LOG info "${BLUE}Tracks${NC}:"
         for (( i=0; i < ${#files_joined[@]}; i++)); do
+            track_num=$((i+1))
             f="${files_joined[$i]}"
             CURRENTLY_PLAYING+=("$(basename "${MUSIC_DIRECTORY}/${f}")")
-            LOG info "${GREY}MUSIC${NC}: ${GREEN}${CURRENTLY_PLAYING[$i]%.*}${NC}"
+            LOG info "  ${GREY}$track_num${NC} ${LIGHT_SKIN}${CURRENTLY_PLAYING[$i]%.*}${NC}"
         done
         # LOG info "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} \"${LIGHT_SKIN}${files_joined[@]/#/${MUSIC_DIR}/}/${f}${NC}\"\n"
-        LOG info "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} \"${LIGHT_SKIN}${CURRENTLY_PLAYING[@]%.*}${NC}\"\n"
         mpv ${mpv_flags[@]} "${files_joined[@]/#/${MUSIC_DIR}/}"
 
     else
@@ -88,75 +122,95 @@ function Play() {
         fi
     done
 
-    PlayMusic "${MUSIC_FILES[@]}"
+    TurnMusicOn "${MUSIC_FILES[@]}"
 }
 
 # trap cleanup EXIT INT SIGTERM
 
-for (( i=0 ; i < "${#ARGUMENTS[@]}" ; i++ )); do
-    arg="${ARGUMENTS[$i]}"
-    case "${arg}" in
-        vid|-vid|--vid|-video|--video)
-            video="auto"
-            ;;
-        vol|-vol|--vol|-volume|--volume)
-            volume=${ARGUMENTS[ $((i+1)) ]}
-            [[ -z ${volume} || ${volume} == -* ]] && {
-                LOG error "No argument give after ${GREY}--volume${NC}"
-                LOG info "Default volume: ${BLUE}65${NC}"
-                volume=65
-            }
-            i=$((i+1))
-            ;;
-        -vol=*|--vol=*|--volume=*)
-            if [[ "${arg#*=}" =~ ^[0-9]+$ ]]; then
-                volume=$(awk -F'=' '{print $2}' <<< "${arg}")
-            else
-                LOG error "Invalid volume: ${arg}"
-                LOG info "Default volume: ${BLUE}65${NC}"
-            fi
-            ;;
-        -q|--quiet)
-            QUIET="--really-quiet"
-            ;;
-        -l|--loop)
-            FULL_LOOP=1
-            ;;
-    esac
-done
+function main() {
+    local arg=
+    local volume=
+    local video=
 
-[[ -d "${MUSIC_DIR}" ]] || {
-    LOG error "Music directory not found: '${BLUE}${MUSIC_DIR}${NC}'"
-    exit 1
+    for (( i=0 ; i < ${#ARGUMENTS[@]} ; i++ )); do
+        arg="${ARGUMENTS[$i]}"
+        case "${arg}" in
+            vid|-vid|--vid|-video|--video)
+                video="auto"
+                ;;
+            vol|-vol|--vol|-volume|--volume)
+                volume=${ARGUMENTS[ $((i+1)) ]}
+                [[ -z ${volume} || ${volume} == -* ]] && {
+                    LOG error "No argument give after ${GREY}--volume${NC}"
+                    LOG info "Default volume: ${BLUE}65${NC}"
+                    volume=65
+                }
+                i=$((i+1))
+                ;;
+            -vol=*|--vol=*|--volume=*)
+                if [[ "${arg#*=}" =~ ^[0-9]+$ ]]; then
+                    volume=$(awk -F'=' '{print $2}' <<< "${arg}")
+                else
+                    LOG error "Invalid volume: ${arg}"
+                    LOG info "Default volume: ${BLUE}65${NC}"
+                fi
+                ;;
+            -q|--quiet)
+                QUIET="--really-quiet"
+                ;;
+            -s|--shuff|--shuffle)
+                SHUFFLE=1
+                ;;
+            -l|--loop)
+                FULL_LOOP=1
+                ;;
+            -h|--help)
+                Usage
+                exit 0
+                ;;
+        esac
+    done
+
+    [[ -d "${MUSIC_DIR}" ]] || {
+        LOG error "Music directory not found: '${BLUE}${MUSIC_DIR}${NC}'"
+        exit 1
+    }
+
+    mapfile -t SELECTED < <(find "${MUSIC_DIR}" \( -type f -iregex '.*\.\(mp3\|flac\|m4a\|wav\|aac\|ogg\|opus\|wma\|alac\|ape\|mpc\|wavpack\)' \) -printf "%P\n" | fzf --multi)
+
+
+    if [[ ${#SELECTED[@]} -eq 0 ]]; then
+        LOG info "No song selected"
+        exit 1
+    elif [[ ${#SELECTED[@]} -gt 1 ]]; then
+        LOOP=1
+    fi
+
+    [[ $SHUFFLE -eq 1 && $LOOP -eq 0 && $FULL_LOOP -eq 0 ]] && LOG warn "Shuffle can only be used with --loop and mutiple tracks"
+    [[ $SHUFFLE -eq 1 ]] && SELECTED=($(printf "%s\n" "${SELECTED[@]}" | shuf))
+
+
+    [[ $LOOP -eq 0 ]] && {
+        mpv_flags+=("--loop-file=inf")
+    } || {
+        mpv_flags+=("--loop-file=no")
+    }
+
+    mpv_flags+=(
+        "${QUIET}"
+        "--vid=${video:-"no"}"
+        "--volume=${volume:-65}"
+        "--script-opts=mpris=yes"
+        "--vo=gpu-next"
+        "--hwdec=vulkan"
+        "--hdr-compute-peak"
+        "--osc=no"
+        "--msg-level=ffmpeg/demuxer=error"
+    )
+
+    ### Play music
+    Play
 }
 
-mapfile -t SELECTED < <(find "${MUSIC_DIR}" \( -type f -iregex '.*\.\(mp3\|flac\|m4a\|wav\|aac\|ogg\|opus\|wma\|alac\|ape\|mpc\|wavpack\)' \) -printf "%P\n" | fzf --multi)
-
-if [[ ${#SELECTED[@]} -eq 0 ]]; then
-    LOG info "No song selected"
-    exit 1
-elif [[ ${#SELECTED[@]} -gt 1 ]]; then
-    LOOP=1
-fi
-
-[[ $LOOP -eq 0 ]] && {
-    mpv_flags+=("--loop-file=inf")
-} || {
-    mpv_flags+=("--loop-file=no")
-}
-
-mpv_flags+=(
-    "${QUIET}"
-    "--vid=${video:-"no"}"
-    "--volume=${volume:-65}"
-    "--script-opts=mpris=yes"
-    "--vo=gpu-next"
-    "--hwdec=vulkan"
-    "--hdr-compute-peak"
-    "--osc=no"
-    "--msg-level=ffmpeg/demuxer=error"
-)
-
-### Play music
-Play
+main
 

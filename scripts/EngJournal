@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 LESSON_DIRECTORY="${HOME}/English"
 PROMPT_HISTORY="${LESSON_DIRECTORY}/.prompt_history"

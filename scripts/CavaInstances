@@ -3,7 +3,7 @@
 FLAG="$1"
 TEMP_FILE="/tmp/.cava_instances.tmp"
 TIMESTAMP="/tmp/.timestamp_cava_instances.tmp"
-speed=0.01
+speed=0.02
 # threshold=0
 
 function KILL_CAVA() {
@@ -11,8 +11,8 @@ function KILL_CAVA() {
 }
 
 function CAVA() {
-    for (( i=0 ; i < 8 ; i++ )); do
-        footclient --server-socket=/tmp/foot.sock -e "cava" &>/dev/null &
+    for (( i=0 ; i < 6 ; i++ )); do
+        footclient --server-socket=/tmp/.foot.sock -e "cava" &>/dev/null &
         echo $! >> "${TEMP_FILE}"
         sleep "$speed"
         disown

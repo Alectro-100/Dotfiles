@@ -168,7 +168,7 @@
           "<span color='#dd532e'>█</span>"  // red
     ],
         "min-length": 5,
-        "on-click-right": "XDG_CURRENT_DESKTOP=KDE plasma-systemmonitor"
+        "on-click-right": "XDG_CURRENT_DESKTOP=kde plasma-systemmonitor"
     },
 
     "memory": {
@@ -228,8 +228,8 @@
         "format-bluetooth-muted": " {icon}  {format_source}",
         "format-muted": "  {format_source}",
         "format-source": "{volume}%  ",
-        "on-click": "pavucontrol",
-        "on-click-right": "blueman-manager",
+        "on-click": "XDG_CURRENT_DESKTOP=kde GTK_THEME=Adwaita:dark pavucontrol",
+        "on-click-right": "XDG_CURRENT_DESKTOP=kde blueman-manager",
         "format-source-muted": " ",
             "format-icons": {
             "alsa_output.pci-0000_00_1f.3.analog-stereo": "  ",

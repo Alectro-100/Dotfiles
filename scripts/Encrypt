@@ -46,16 +46,25 @@ function ERROR() {
 
 # Throw usage at console
 function Usage() {
-    echo -e "[${HL}${GREEN}INFO${NC}]: Usage: $(basename $0) --file [OUTPUT_NAME] [FILE/DIRECTORY]..."
-    echo -e ""
-    echo -e "Useful flags"
-    echo -e ""
-    echo -e "   -f, --file         Output file name"
-    echo -e "   -z, --compress     Compress file using xz"
-    echo -e "   -[0-9]             Compressiong level (only if --compress flag is given)"
-    printf  "                      "
-    echo                           -{0..9}
-    echo -e ""
+    printf "%b\n" \
+    "${HL}Encrypt - Create encrypted archives from files and directories${NC}" \
+    "" \
+    "Usage:" \
+    "  $(basename $0) [options] [FILE/DIR]..." \
+    "" \
+    "Options:" \
+    "  -f, --file OUTPUT    Specify output file name (without extension)" \
+    "  -z, --compress       Compress tarball using xz before encryption" \
+    "  -0..-9               Set compression level (only with --compress)" \
+    "  -h, --help           Show this help message and exit" \
+    "" \
+    "Description:" \
+    "  This script creates a tarball from the given files/directories," \
+    "  optionally compresses it, and encrypts the result using gpg AES256." \
+    "" \
+    "Example:" \
+    "  $(basename $0) -f backup -z -6 Documents Pictures" \
+    "  Creates a compressed, encrypted archive 'backup.tar.xz.gpg' from Documents and Pictures."
 }
 
 # Create the tar ball archieve from Files/Dirs

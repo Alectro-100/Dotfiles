@@ -1,5 +1,4 @@
 call plug#begin('/usr/share/nvim/NVIM')
-
     Plug 'rust-lang/rust.vim'
     Plug 'neoclide/coc.nvim', {'branch': 'release'}
     Plug 'tpope/vim-commentary'
@@ -9,9 +8,7 @@ call plug#begin('/usr/share/nvim/NVIM')
     Plug 'nvim-lua/plenary.nvim'
     Plug 'nvim-telescope/telescope.nvim'
     " Plug 'puremourning/vimspector'
-    Plug 'mg979/vim-visual-multi', {'branch': 'master'}
     Plug 'tomasr/molokai'
-
 call plug#end()
 
 colorscheme molokai
@@ -36,13 +33,13 @@ nnoremap <silent><leader>t :tabnew<CR>
 nnoremap <silent><leader>n :tabNext<CR>
 nnoremap <silent><leader>q :tabclose<CR>
 
-nnoremap <silent><A-k> :move .-2 <CR>==
-vnoremap <silent><A-k> :move '<-2 <CR>gv=gv
-inoremap <silent><A-k> <ESC>:move .-2<CR>==gi
-
 nnoremap <silent><A-j> :move .+1 <CR>==
 vnoremap <silent><A-j> :move '>+1 <CR>gv=gv
-inoremap <silent><A-j> <ESC>:move .+1<CR>==gi
+inoremap <silent><A-j> <ESC>:move .+1 <CR>==gi
+
+nnoremap <silent><A-k> :move .-2 <CR>==
+vnoremap <silent><A-k> :move '<-2 <CR>gv=gv
+inoremap <silent><A-k> <ESC>:move .-2 <CR>==gi
 
 " Force F1 to do nothing
 nnoremap <silent> <F1> <Nop>

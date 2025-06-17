@@ -130,7 +130,7 @@ function Install_utils() {
 
 function Install_term_filemanagers() {
     MSG="Terminal File managers"
-    Pacman_install "${MSG}" yazi ranger
+    Pacman_install "${MSG}" yazi ranger nautilus dolphin
 }
 
 function Install_pentesting_tools() {
@@ -188,7 +188,7 @@ function Install_misc_tools() {
       syslog-ng glances krusader nwg-drawer speedtest-cli kube-apiserver kubectl \
        syncplay ncurses carla qtractor rust rust-src ardour qt6-tools obsidian \
         nvidia-container-toolkit weechat irssi blender okular krita vim git \
-         docker gimp wofi code python-openai-whisper
+         docker gimp wofi code python-openai-whisper perl-image-exiftool
 
     AUR_Install "${MSG} via aur" lagrange-bin vtop rsyslog \
         piper-tts-bin delta

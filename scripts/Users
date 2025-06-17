@@ -1,22 +1,18 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Currently active users
-CURRENT_USERS="$(ps -eo user= | sort | uniq)"
+current_user=$(whoami)
+readarray -t current_users < <(ps -eo user= | sort -u)
+readarray -t valid_users < <(getent passwd | awk -F':' '!/nologin|daemon/ {print $1}')
 
-# Valid users in /etc/passwd file
-VALID_USERS=$(getent passwd | awk -F':' '!/nologin|daemon/ {printf "%s ", $1}')
-
-# Print the users
-for user in ${VALID_USERS}; do
-    if [[ "${user}" == "$(whoami)" ]]; then
+for user in "${valid_users[@]}"; do
+    if [[ "$user" == "$current_user" ]]; then
         echo "$user (you)"
     else
-        for u in $CURRENT_USERS; do
-            [[ "${user}" == "${u}" ]] && echo "${u}"
+        for u in "${current_users[@]}"; do
+            [[ "$user" == "$u" ]] && echo "$u"
         done
     fi
 done
 
-# Exit with no errors
 exit 0
 

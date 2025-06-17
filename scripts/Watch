@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 test $# -eq 0 && {
     echo "No command or file was given"

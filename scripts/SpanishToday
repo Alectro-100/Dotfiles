@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 EDITOR="$1"
 FILE="$HOME/Notes/Language/Spanish/Lesson_$(( $(date +%s)/86400 - 20152))_$(date +%d-%b-%Y_).md"

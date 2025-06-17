@@ -36,6 +36,7 @@ host_color="\033[38;2;231;245;180m"
 dir_color="\033[38;2;89;159;240m"
 
 PROMPT_COMMAND='PS1="\[${light_green}\][[\[\033[0m\] \[\033[1;32m\]\u\[\033[0m\]@\[${host_color}\]\h\[\033[0m\]:\[${dir_color}\]\w\[\033[0m\] \[${light_green}\]]]\[\033[0m\]\[\033[38;2;20;200;40m\]$(show_current_branch)\[\033[0m\] $ "'
-source "$HOME/.cargo/env"
-source "$HOME/.SHELL_RC" 2> /dev/null
+
+source "$HOME/.cargo/env" 2> /dev/null
+source "$HOME/.shell_rc" 2> /dev/null
 
