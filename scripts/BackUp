@@ -155,9 +155,9 @@ function CloneRepo() {
 
 function PushRepo() {
     local force="$1"
-    local COMMIT_MSG=""
-    local SATISFIED=""
-    local SHOULD_CONTINUE=""
+    local satisfied=""
+    local should_continue=""
+    local should_commit=""
 
     [[ -z "${USERNAME}" ]] && {
         ERROR "No github username given"
@@ -168,41 +168,31 @@ function PushRepo() {
 
     cd "${GIT_DIR}"
 
-    if git diff --quiet && git --no-pager diff --quiet --staged; then
-        INFO "Pushing changes to git@github.com:${USERNAME}/${REPO_NAME}.git"
-        git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${force} && \
-            INFO "Successfully pushed your changes to github repository"
-    else
+    if ! git diff --quiet ; then
         INFO "Launching git interactive git add"
-        git add -p || ERROR "Interactive staging failed"
-        if [[ -z "${MSG}" ]]; then
-            echo -en "Your commit message: "
-            read -r COMMIT_MSG
-            [[ -z "${COMMIT_MSG}" ]] && {
-                ERROR "Empty commit message."
-                exit 1
-            }
-        else
-            COMMIT_MSG="${MSG}"
-        fi
-        INFO "Summary of staged changes"
-        git diff --staged --stat
-        echo -en "Are you saisfied with changes? (y|n): "
-        read -r SATISFIED
-        if [[ "${SATISFIED}" =~ ^(y|yes|Yes)$ || "${SATISFIED}" == "" ]]; then
-            git commit -m "${COMMIT_MSG}" && INFO "Successfully commited the changes"
-        else
-            INFO "Commit aborted"
-            echo -en "Continue?: "
-            read -r SHOULD_CONTINUE
-            [[ "${SHOULD_CONTINUE}" =~ ^(y|yes|Yes)$ ]] || {
-                exit 1
-            }
-        fi
-        INFO "Pushing changes to git@github.com:${USERNAME}/${REPO_NAME}.git"
-        git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${force} && \
-            INFO "Successfully pushed your changes to github repository"
+        git add -p || {
+            ERROR "Interactive staging failed"
+            return 1
+        }
     fi
+    INFO "Summary of staged changes"
+    git diff --staged --stat
+
+    printf "%s: " "Are you saisfied with changes? (y|n)"; read -r satisfied
+
+    if [[ "${satisfied}" =~ ^(y|yes|Yes)$ ]]; then
+        printf "%s: " "Commit? (y|n)"; read -r should_commit
+        [[ "${should_commit}" =~ ^(y|yes|Yes)$ ]] || return 1
+        git commit --template=<( printf "[tag] module: what changed\n\n" ) && \
+            INFO "Successfully commited the changes"
+    else
+        INFO "Commit aborted"
+        printf "%s: " "Continue to commit?"; read -r should_continue
+        [[ "${should_continue}" =~ ^(y|yes|Yes)$ ]] || exit 1
+    fi
+    INFO "Pushing changes to git@github.com:${USERNAME}/${REPO_NAME}.git"
+    git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${force} && \
+        INFO "Successfully pushed your changes to github repository"
 }
 
 function Cleanup() {
@@ -311,7 +301,7 @@ function main() {
                     ;;
                 -p|--push)
                     should_push=1
-                    LOG_LEVEL=1
+                    LOG_LEVEL=2
                     DEBUG_LOG "Backup will be pushed to github"
                     ;;
                 --force)

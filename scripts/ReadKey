@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+while true; do
+    IFS= read -rsn1 KEY
+    case "$KEY" in
+        q|Q) echo "Exiting..."; break;;
+        [a-z]) echo "You pressed: $KEY";;
+        [A-Z]) echo "You pressed: $KEY";;
+        $'\x20') echo "Your pressed Space";;
+        $'') echo "You pressed Enter";;
+        *) 
+          printf "Unknown key: '%s' (hex: " "$KEY"
+          for ((i=0; i<${#KEY}; i++)); do
+            printf '%02x ' "'${KEY:$i:1}"
+          done
+          echo ")"
+          ;;
+    esac
+done
+

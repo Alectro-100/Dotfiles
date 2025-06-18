@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 
-ARGS="$@"
+declare -a ARGS=("$@")
 PID_FILE="/tmp/.lastplayed_pid.backgroundPS"
 LAST_PLAYED_TIME="$(date +%s)"
 MPV_IPC_SEVER="/tmp/mpv_socket"
 
-for arg in ${ARGS}; do
+for arg in "${ARGS[@]}"; do
     if [[ -s ${PID_FILE} ]] || [[ ${arg} == "KILL" ]] ; then
         PID=$(cat "${PID_FILE}")
         kill -INT "${PID}" &> /dev/null
     fi
-    mpv --loop --volume=65 --input-ipc-server="${MPV_IPC_SEVER}" ${arg} 1> /dev/null 2>&1 &
+    mpv --volume=10 --vid=auto --loop=inf --input-ipc-server="${MPV_IPC_SEVER}" "${ARGS[@]}" 1> /dev/null 2>&1 &
+    echo "Use socket $MPV_IPC_SEVER"
     [[ $? -eq 0 ]] && {
         PLAYED="$!"
         echo "${PLAYED}" 1> "${PID_FILE}"
