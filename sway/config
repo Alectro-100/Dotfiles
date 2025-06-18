@@ -76,7 +76,7 @@ font pango: SourceCodePro Large 4
 ### Set $mod (Mod4 or Super) for logo key ###
     set $mod Super
 
-    # Alphabets
+    # Alphabets kecodes if I need
     set $backslash 51
     set $A  38
     set $B  56
@@ -89,8 +89,8 @@ font pango: SourceCodePro Large 4
     set $I  31
     set $J  44
     set $K  45
-    set $L  46
     set $M  58
+    set $L  46
     set $N  57
     set $O  32
     set $P  33
@@ -177,23 +177,34 @@ font pango: SourceCodePro Large 4
         floating_modifier $mod normal
 
     #* Switch to workspace *#
-        bindsym $mod+1 workspace number 1
-        bindsym $mod+2 workspace number 2
-        bindsym $mod+3 workspace number 3
-        bindsym $mod+4 workspace number 4
-        bindsym $mod+5 workspace number 5
-        bindsym $mod+6 workspace number 6
+        bindsym {
+            $mod+1 workspace number 1
+            $mod+2 workspace number 2
+            $mod+3 workspace number 3
+            $mod+4 workspace number 4
+            $mod+5 workspace number 5
+            $mod+6 workspace number 6
+        }
+
+    #* Cycle next workspace *#
+        # Focus the next window (one-directional)
+        bindsym $mod+Tab exec bash -c 'swaymsg focus right || swaymsg focus down || swaymsg focus up || swaymsg focus left || swaymsg workspace next'
+        # Focus the previous window (one-directional)
+        bindsym $mod+Shift+Tab exec bash -c 'swaymsg focus left || swaymsg focus up || swaymsg focus down || swaymsg focus right || swaymsg workspace prev'
+
 
     #* Move focused container to workspace *#
-        bindsym $mod+Shift+1 move container to workspace number 1
-        bindsym $mod+Shift+2 move container to workspace number 2
-        bindsym $mod+Shift+3 move container to workspace number 3
-        bindsym $mod+Shift+4 move container to workspace number 4
-        bindsym $mod+Shift+5 move container to workspace number 5
-        bindsym $mod+Shift+6 move container to workspace number 6
+        bindsym {
+            $mod+Shift+1 move container to workspace number 1
+            $mod+Shift+2 move container to workspace number 2
+            $mod+Shift+3 move container to workspace number 3
+            $mod+Shift+4 move container to workspace number 4
+            $mod+Shift+5 move container to workspace number 5
+            $mod+Shift+6 move container to workspace number 6
+        }
 
     #* Special keys to adjust volume via PulseAudio *#
-        bindsym --locked {
+        bindsym {
             XF86AudioMute exec pactl set-sink-mute \@DEFAULT_SINK@ toggle
             XF86AudioLowerVolume exec pactl set-sink-volume \@DEFAULT_SINK@ -5%
             XF86AudioRaiseVolume exec pactl set-sink-volume \@DEFAULT_SINK@ +5%
@@ -201,26 +212,30 @@ font pango: SourceCodePro Large 4
         }
 
     #* Special keys to adjust brightness via brightnessctl *#
-        bindsym --locked {
+        bindsym {
             XF86MonBrightnessDown exec brightnessctl set 5%-
             XF86MonBrightnessUp exec brightnessctl set 5%+
         }
 
     #* Move your focus around, mode: VIM (hjkl) *#
-        bindsym $mod+$left focus left
-        bindsym $mod+$down focus down
-        bindsym $mod+$up focus up
-        bindsym $mod+$right focus right
+        bindsym {
+            $mod+$left focus left
+            $mod+$down focus down
+            $mod+$up focus up
+            $mod+$right focus right
+        }
 
     #* Move the focused window in floating mode, modes: VIM (hjkl) or arrow keys *#
-        bindsym $mod+Shift+$left move left
-        bindsym $mod+Shift+Left move left
-        bindsym $mod+Shift+$down move down
-        bindsym $mod+Shift+Down move down
-        bindsym $mod+Shift+$up move up
-        bindsym $mod+Shift+Up move up
-        bindsym $mod+Shift+$right move right
-        bindsym $mod+Shift+Right move right
+        bindsym {
+            $mod+Shift+$left move left
+            $mod+Shift+Left move left
+            $mod+Shift+$down move down
+            $mod+Shift+Down move down
+            $mod+Shift+$up move up
+            $mod+Shift+Up move up
+            $mod+Shift+$right move right
+            $mod+Shift+Right move right
+        }
 
     #* Resizing containers *#
         bindsym $mod+r mode resize
@@ -233,11 +248,6 @@ font pango: SourceCodePro Large 4
             bindsym Return mode default
             bindsym Escape mode default
         }
-
-        # bindsym $mod+Ctrl+$up resize shrink height 14px
-        # bindsym $mod+Ctrl+$down resize grow height 14px
-        # bindsym $mod+Ctrl+$left resize shrink width 14px
-        # bindsym $mod+Ctrl+$right resize grow width 14px
 
         bindsym {
             $mod+Ctrl+$up resize shrink height 14px
@@ -321,7 +331,7 @@ font pango: SourceCodePro Large 4
 
         # Edit this (sway config) with neovim or vim
             bindsym $mod+I exec bash -c \
-                'CONF=${HOME}/.config/sway/config; command -v nvim && EDIT=nvim || EDIT=vim; foot ${EDIT} --clean -c "colorscheme slate\nset tabstop=4\nset shiftwidth=4\nset nu\nset relativenumber" ${CONF}'
+                'CONF=${HOME}/.config/sway/config; command -v nvim && EDIT=nvim || EDIT=vim; foot ${EDIT} ${CONF}'
 
         # Shutdown (Mod+Alt+Shift+P)
             bindsym $mod+Alt+Shift+P exec bash -c \
@@ -354,7 +364,6 @@ font pango: SourceCodePro Large 4
         # List of Emojies in rofi-emoji (Shift+Tab+E)
             bindsym Shift+Tab+E exec bash -c \
                 '$(rofi -modi emoji -show emoji)'
-
 
     #* System monitors *#
         # htop

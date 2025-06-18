@@ -3,43 +3,12 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# ASCII colors
-GREEN="\033[38;2;100;255;40m"
-YELLOW="\033[38;2;255;190;65m"
-BLUE="\033[38;2;100;100;240m"
-RED="\033[38;2;255;10;10m"
-NC="\033[0m"
-HL="\033[1m"
-
-# An array to hold all the given flags
-FLAGS_ARRAY=("$@")
-
 # Your git local dotfile repository
 GIT_DIR="${HOME}/DEV/Dotfiles"
 
 # Github username and dotfile repository
 USERNAME="Alectro-100"
 REPO_NAME="Dotfiles"
-
-# command in use to copy stuff
-SYNC_="rsync"
-
-# 1 for git status 0 for no git status
-GIT_STATUS=0
-
-# LOG=0 ERROR=1 INFO=2 DEBUG=3
-LOG_LEVEL=1
-
-# Toggle push or pull
-SHOULD_PUSH=0
-SHOULD_CLONE=0
-
-# string '--force'
-FORCE=""
-
-# Temporary variable
-CLONE_DIR=""
-MSG=""
 
 ### File to file Copy
 declare -A FILES_TO_COPY=(
@@ -61,6 +30,23 @@ declare -A DIRS_TO_COPY=(
     ["${HOME}/.config/qutebrowser"]="${GIT_DIR}/qutebrowser"
     ["${HOME}/.bin"]="${GIT_DIR}/scripts"
 )
+
+# ASCII colors
+GREEN="\033[38;2;100;255;40m"
+YELLOW="\033[38;2;255;190;65m"
+BLUE="\033[38;2;100;100;240m"
+RED="\033[38;2;255;10;10m"
+NC="\033[0m"
+HL="\033[1m"
+
+# command in use to copy stuff
+SYNC_="rsync"
+
+# LOG=0 ERROR=1 INFO=2 DEBUG=3
+LOG_LEVEL=1
+
+# Temporary variable
+MSG=""
 
 function ERROR() {
     [[ $LOG_LEVEL -ge 1 ]] && {
@@ -168,6 +154,7 @@ function CloneRepo() {
 }
 
 function PushRepo() {
+    local force="$1"
     local COMMIT_MSG=""
     local SATISFIED=""
     local SHOULD_CONTINUE=""
@@ -183,7 +170,7 @@ function PushRepo() {
 
     if git diff --quiet && git --no-pager diff --quiet --staged; then
         INFO "Pushing changes to git@github.com:${USERNAME}/${REPO_NAME}.git"
-        git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${FORCE} && \
+        git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${force} && \
             INFO "Successfully pushed your changes to github repository"
     else
         INFO "Launching git interactive git add"
@@ -213,7 +200,7 @@ function PushRepo() {
             }
         fi
         INFO "Pushing changes to git@github.com:${USERNAME}/${REPO_NAME}.git"
-        git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${FORCE} && \
+        git push "git@github.com:${USERNAME}/${REPO_NAME}.git" $(git symbolic-ref --short HEAD) ${force} && \
             INFO "Successfully pushed your changes to github repository"
     fi
 }
@@ -252,122 +239,146 @@ function Usage() {
 
 trap Cleanup SIGINT SIGTERM
 
-for (( i=0 ; i < ${#FLAGS_ARRAY[@]} ; i++ )); do
-    arg="${FLAGS_ARRAY[$i]}"
-    if [[ "$arg" == -* ]]; then
-        case "$arg" in
-            -v|--verbose|--progress)
-                LOG_LEVEL=1
-                DEBUG_LOG "Verbose is set"
-                ;;
-            -l=*|--log=*|--loglevel=*)
-                LOG_LEVEL=${arg#*=}
-                if [[ -z ${LOG_LEVEL} || ${LOG_LEVEL} == -* ]] || [[ ! ${LOG_LEVEL} =~ ^[0-9]+$ ]]; then
-                    LOG_LEVEL=1
-                elif [[ $LOG_LEVEL -gt 3 ]]; then
-                    DEBUG_LOG "LOG_LEVEL has no effect over integer ${LOG_LEVEL}"
-                fi
-                [[ $LOG_LEVEL -ge 3 ]] && DEBUG_LOG "Debugging enabled"
-                ;;
-            -l|--log|--loglevel)
-                LOG_LEVEL=${FLAGS_ARRAY[$(( i + 1 ))]:-1}
+function main() {
+    # An array to hold all the given flags
+    local -a flagArr=("$@")
 
-                if [[ -z ${LOG_LEVEL} || ${LOG_LEVEL} == -* ]]; then
+    # 1 for git status 0 for no git status
+    local git_status=0
+
+    # Toggle push or pull
+    local should_push=0
+    local should_clone=0
+    # Clone directory
+    local clone_dir=""
+
+    # string '--force'
+    local force=""
+
+    for (( i=0 ; i < ${#flagArr[@]} ; i++ )); do
+        arg="${flagArr[$i]}"
+        if [[ "${arg}" == -* ]]; then
+            case "${arg}" in
+                -v|--verbose|--progress)
                     LOG_LEVEL=1
-                elif [[ $LOG_LEVEL -gt 3 ]]; then
-                    DEBUG_LOG "LOG_LEVEL has no effect over integer ${LOG_LEVEL}"
-                fi
-                [[ $LOG_LEVEL -ge 3 ]] && DEBUG_LOG "Debugging enabled"
-                i=$(( i + 1 ))
-                ;;
-            -d|-db|--db|--deb|--debug)
-                LOG_LEVEL=2
-                DEBUG_LOG "Debugging enabled"
-                ;;
-            -g|-gs|--gs|--status|--git-status)
-                GIT_STATUS=1
-                DEBUG_LOG "GIT_STATUS is set"
-                ;;
-            -c|--clone|--clone-local)
-                CLONE_DIR="${FLAGS_ARRAY[$(( i + 1 ))]}"
-                [[ -n "${CLONE_DIR}" ]] && {
+                    DEBUG_LOG "Verbose is set"
+                    ;;
+                -l=*|--log=*|--loglevel=*)
+                    LOG_LEVEL=${arg#*=}
+                    if [[ -z ${LOG_LEVEL} || ${LOG_LEVEL} == -* ]] || [[ ! ${LOG_LEVEL} =~ ^[0-9]+$ ]]; then
+                        LOG_LEVEL=1
+                    elif [[ $LOG_LEVEL -gt 3 ]]; then
+                        DEBUG_LOG "LOG_LEVEL has no effect over integer ${LOG_LEVEL}"
+                    fi
+                    [[ $LOG_LEVEL -ge 3 ]] && DEBUG_LOG "Debugging enabled"
+                    ;;
+                -l|--log|--loglevel)
+                    LOG_LEVEL=${flagArr[$(( i + 1 ))]:-1}
+
+                    if [[ -z ${LOG_LEVEL} || ${LOG_LEVEL} == -* ]]; then
+                        LOG_LEVEL=1
+                    elif [[ $LOG_LEVEL -gt 3 ]]; then
+                        DEBUG_LOG "LOG_LEVEL has no effect over integer ${LOG_LEVEL}"
+                    fi
+                    [[ $LOG_LEVEL -ge 3 ]] && DEBUG_LOG "Debugging enabled"
                     i=$(( i + 1 ))
-                }
-                SHOULD_CLONE=1
-                ;;
-            -m|-msg|--msg)
-                MSG="${FLAGS_ARRAY[$(( i + 1 ))]}"
-                [[ -n "${MSG}" ]] && {
-                    i=$(( i + 1 ))
-                }
-                SHOULD_CLONE=1
-                ;;
-            -p|--push)
-                SHOULD_PUSH=1
-                DEBUG_LOG "Backup will be pushed to github"
-                ;;
-            --force)
-                FORCE="--force"
-                DEBUG_LOG "Forcing push"
-                ;;
-            -h|--help|help)
-                Usage
-                exit 0
-                ;;
-            *)
-                ERROR "Invalid flag: $arg"
-                ;;
-        esac
+                    ;;
+                -d|-db|--db|--deb|--debug)
+                    LOG_LEVEL=2
+                    DEBUG_LOG "Debugging enabled"
+                    ;;
+                -g|-gs|--gs|--status|--git-status)
+                    git_status=1
+                    DEBUG_LOG "git_status is set"
+                    ;;
+                -c|--clone|--clone-local)
+                    clone_dir="${flagArr[$(( i + 1 ))]}"
+                    [[ -n "${clone_dir}" ]] && {
+                        i=$(( i + 1 ))
+                    }
+                    should_clone=1
+                    ;;
+                -clone=*|--clone-local=*)
+                    clone_dir="${arg#*=}"
+                    should_clone=1
+                    ;;
+                -m|-msg|--msg)
+                    MSG="${flagArr[$(( i + 1 ))]}"
+                    [[ -n "${MSG}" ]] && {
+                        i=$(( i + 1 ))
+                    }
+                    should_clone=1
+                    ;;
+                -p|--push)
+                    should_push=1
+                    LOG_LEVEL=1
+                    DEBUG_LOG "Backup will be pushed to github"
+                    ;;
+                --force)
+                    force="--force"
+                    DEBUG_LOG "Forcing push"
+                    ;;
+                -h|--help|help)
+                    Usage
+                    exit 0
+                    ;;
+                *)
+                    ERROR "Invalid flag: $arg"
+                    ;;
+            esac
+        fi
+    done
+
+
+    if [[ "${should_clone}" -eq 1 ]]; then
+        CloneRepo "${clone_dir}"
+        exit 0
     fi
-done
 
+    if command -v rsync 1> /dev/null 2>&1; then
+        SYNC_="rsync"
+        [[ $? -ne 0 ]] && ERROR "'rsync' not found. Falling back to 'cp'."
+    elif command -v cp 1> /dev/null 2>&1; then
+        SYNC_="cp"
+    fi
 
-if [[ "${SHOULD_CLONE}" -eq 1 ]]; then
-    CloneRepo "${CLONE_DIR}"
-    exit 0
-fi
+    # Why local dotfile directory doesn't exist
+    if [[ ! -d "${GIT_DIR}" ]]; then
+        INFO "${GIT_DIR} doesn't exist"
+        mkdir --parents "${GIT_DIR}" && {
+            INFO "Created ${GIT_DIR}"
+        } || {
+            ERROR "Cannot create '${BLUE}${GIT_DIR}${NC}'"
+            exit 1
+        }
+    fi
 
-if command -v rsync 1> /dev/null 2>&1; then
-    SYNC_="rsync"
-    [[ $? -ne 0 ]] && ERROR "'rsync' not found. Falling back to 'cp'."
-elif command -v cp 1> /dev/null 2>&1; then
-    SYNC_="cp"
-fi
+    DEBUG_LOG "Using GIT_DIR=$GIT_DIR"
+    DEBUG_LOG "Using git_status=$git_status"
+    DEBUG_LOG "Using LOG_LEVEL=$LOG_LEVEL"
+    DEBUG_LOG "Using SYNC_=$SYNC_"
 
-# Why local dotfile directory doesn't exist
-if [[ ! -d "${GIT_DIR}" ]]; then
-    INFO "${GIT_DIR} doesn't exist"
-    mkdir --parents "${GIT_DIR}" && {
-        INFO "Created ${GIT_DIR}"
-    } || {
-        ERROR "Cannot create '${BLUE}${GIT_DIR}${NC}'"
-        exit 1
+    # Start copying all the files to the destination
+    for src in "${!FILES_TO_COPY[@]}"; do
+        CopyFiles "${src}" "${FILES_TO_COPY[$src]}"
+    done
+
+    # Start copying directory content to the the destination
+    for src in "${!DIRS_TO_COPY[@]}"; do
+        CopyDirs "${src}" "${DIRS_TO_COPY[$src]}"
+    done
+
+    if [[ ${git_status} -eq 1 ]]; then
+        cd ${GIT_DIR}
+        git status
+    fi
+
+    echo && INFO "Dotfile directory: ${BLUE}${GIT_DIR}${NC}\n"
+
+    [[ $should_push -eq 1 ]] && {
+        PushRepo "${force}"
     }
-fi
-
-DEBUG_LOG "Using GIT_DIR=$GIT_DIR"
-DEBUG_LOG "Using GIT_STATUS=$GIT_STATUS"
-DEBUG_LOG "Using LOG_LEVEL=$LOG_LEVEL"
-DEBUG_LOG "Using SYNC_=$SYNC_"
-
-# Start copying all the files to the destination
-for src in "${!FILES_TO_COPY[@]}"; do
-    CopyFiles "${src}" "${FILES_TO_COPY[$src]}"
-done
-
-# Start copying directory content to the the destination
-for src in "${!DIRS_TO_COPY[@]}"; do
-    CopyDirs "${src}" "${DIRS_TO_COPY[$src]}"
-done
-
-if [[ ${GIT_STATUS} -eq 1 ]]; then
-    cd ${GIT_DIR}
-    git status
-fi
-
-echo && INFO "Dotfile directory: ${BLUE}${GIT_DIR}${NC}\n"
-
-[[ $SHOULD_PUSH -eq 1 ]] && {
-    PushRepo
 }
+
+main "$@"
 
