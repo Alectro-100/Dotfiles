@@ -147,7 +147,7 @@ function RequiredTools() {
         # Media/ TUI visulas
         cava mpv imv feh pastel
         # Others
-        jq lsd fzf bat eza rg yt-dlp rclone
+        jq lsd fzf bat eza rg yt-dlp rclone jq
         # DevOps & security extras (optional)
         kubectl ansible nmap john aircrack-ng
     )

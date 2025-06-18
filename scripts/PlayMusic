@@ -19,13 +19,7 @@ QUIET=
 SELECTED=()
 CURRENTLY_PLAYING=()
 LOOP=0
-FULL_LOOP=0
 SHUFFLE=0
-
-# LOOP: Set if user selected more than 1 file (triggers script-level for-loop playback)
-# FULL_LOOP: Set only if user passed --loop (mpv handles all track looping internally)
-# CURRENTLY_PLAYING[]: Used only in FULL_LOOP mode for pretty logging. Not needed in script-loop mode.
-
 
 # MPV_SOCKET="/tmp/mpv_socket"
 
@@ -90,7 +84,7 @@ function TurnMusicOn() {
     local f=""
     local track_num=0
 
-    if [[ $FULL_LOOP -eq 1 ]]; then
+    if [[ $LOOP -eq 1 ]]; then
         LOG info "${BLUE}Tracks${NC}:"
         for (( i=0; i < ${#files_joined[@]}; i++)); do
             track_num=$((i+1))
@@ -161,9 +155,6 @@ function main() {
             -s|--shuff|--shuffle)
                 SHUFFLE=1
                 ;;
-            -l|--loop)
-                FULL_LOOP=1
-                ;;
             -h|--help)
                 Usage
                 exit 0
@@ -186,7 +177,7 @@ function main() {
         LOOP=1
     fi
 
-    [[ $SHUFFLE -eq 1 && $LOOP -eq 0 && $FULL_LOOP -eq 0 ]] && LOG warn "Shuffle can only be used with --loop and mutiple tracks"
+    [[ $SHUFFLE -eq 1 && $LOOP -eq 0 ]] && LOG warn "Shuffle can only be used with mutiple tracks"
     [[ $SHUFFLE -eq 1 ]] && SELECTED=($(printf "%s\n" "${SELECTED[@]}" | shuf))
 
 

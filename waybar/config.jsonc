@@ -1,11 +1,18 @@
 // -*- mode: jsonc -*-
 {
-    // "layer": "top", // Waybar at top layer
-    "position": "top", // Waybar position (top|bottom|left|right)
-    "height": 10, // Waybar height (to be removed for auto height)
-    "width": 1910, // Waybar width
-    "spacing": 2, // Gaps between modules (4px)
-    // Choose the order of the modules
+    // Waybar config
+    // Waybar at top layer
+    // "layer": "top",
+    // Waybar position (top|bottom|left|right)
+    "position": "top",
+    // Waybar height (to be removed for auto height)
+    "height": 10,
+    "width": 1910,
+    "spacing": 2,
+    "mode": "dock",
+    "start_hidden": false,
+
+    // Order of the modules
     "modules-left": [
         // "custom/launcher",
         // "custom/seperator",
@@ -43,7 +50,7 @@
 
     // Unix socket and returns json output
     "custom/now_playing": {
-        "exec": "$HOME/.bin/UnixSocket",
+        "exec": "${HOME}/.bin/UnixSocket",
         "max-length": 60,
         "return-type": "json",
         "tooltip": true,
@@ -54,7 +61,7 @@
 
     // Cava on the top
     "custom/cava": {
-        "exec": "$HOME/.bin/waybar_cava 2",
+        "exec": "${HOME}/.bin/waybar_cava 2",
         "on-click": "pkill -SIGUSR1 -f waybar_cava",
         "return-type": "json",
         "format": "{}"
@@ -209,16 +216,22 @@
 
     "network": {
         // "format-wifi": "{ifname}: {ipaddr}/{cidr}  {bandwidthDownBits}  {bandwidthUpBits}",
+        "interval": 1,
+        "format": "󰤮  Wifi disabled",
         "format-wifi": "    {bandwidthDownBits}  {bandwidthUpBits}",
         "format-alt": "  {essid} ({signalStrength}%)",
         "tooltip-format": "{ifname} via {gwaddr} ",
         "format-linked": "{ifname} (No IP) ",
         "format-ethernet": "{ifname} 󰌘",
         "format-disconnected": "󰌙 Disconnected",
+        "tooltip": true,
         "tooltip-format": "SSID: {essid}\nIP: {ipaddr}\nSpeed:  {bandwidthDownBits}  {bandwidthUpBits}\nStrength: {signalStrength}%",
         "tooltip-format-ethernet": "{ifname} 󰌘",
         "tooltip-format-disconnected": "󰌙 Disconnected",
-        "on-click-right": "foot -e bash -c 'nmcli device wifi list ; sleep 100'"
+        "on-click-right": "foot -a 'Pop-Up' -w 960x540 bash -c 'RESULT=$(nmcli -colors=yes device wifi list); echo \"${RESULT}\"; read -r -n 1 -s'",
+        "on-double-middle": "notify-send -t 1000 'Double click'",
+        "on-scroll-up": "[[ $(nmcli radio wifi) == disabled ]] && nmcli radio wifi on && notify-send -t 1000 'Wifi turned on'",
+        "on-scroll-down": "[[ $(nmcli radio wifi) == enabled ]] && nmcli radio wifi off && notify-send -t 1000 'Wifi turned off'"
     },
 
     "pulseaudio": {
@@ -250,7 +263,7 @@
         "tooltip": false,
         "menu": "on-click",
         "on-click-right": "swaymsg reload",
-        "menu-file": "$HOME/.config/waybar/scripts/power_menu.xml", // Menu file in resources folder
+        "menu-file": "${HOME}/.config/waybar/scripts/power_menu.xml", // Menu file in resources folder
         "menu-actions": {
             "shutdown": "systemctl poweroff --now",
             "reboot": "systemctl reboot --now",
@@ -261,3 +274,4 @@
 }
 
 // vim:filetype=json5
+

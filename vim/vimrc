@@ -1,37 +1,73 @@
-call plug#begin('/usr/share/vim/VIM')
+" Plugin Manager (vim-plug)
+call plug#begin('~/.vim/plugged')
     Plug 'tpope/vim-commentary'
     Plug 'preservim/nerdtree'
     Plug 'vim-airline/vim-airline'
-    " Plug 'tomsar/molokai'
+    Plug 'tomasr/molokai'  " Use molokai color scheme (like in Neovim)
 call plug#end()
 
+" Color scheme
 colorscheme sorbet
+
+" Enable syntax highlighting
 syntax enable
+
+" Line numbering
 set relativenumber
-set termguicolors
+set number
+
+" Tab and indentation settings
 set shiftwidth=4
 set expandtab
 set tabstop=4
-set number
+
+" Enable 24-bit color support
+set termguicolors
+
+" Enable cursorline for focus
+set cursorline
+
+" Enable filetype-specific plugins and indentations
 filetype plugin indent on
 
-command! RunCPP w | !gcc -x c++ -pedantic -std=c++20 -lstdc++ -fno-elide-constructors -Wall -Wextra -O0 "%" -o "%:r" && ./"%:r" ; rm ./"%:r"
-command! RunC w | !gcc -pedantic -Wall -Wextra -O0 "%" -o "%:r" && ./"%:r" ; rm ./"%:r"
-command! InstallPlug call InstallPlug()
+" Automatically jump to last cursor position when reopening a file
+autocmd BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal! g`\" | zz" | endif
 
+" Custom commands for compiling and running C/C++ code
+command! RunCpp w | !gcc -x c++ -pedantic -std=c++20 -lstdc++ -fno-elide-constructors -Wall -Wextra -O0 "%" -o "%:r" && ./"%:r" ; rm ./"%:r"
+command! RunC w | !gcc -pedantic -Wall -Wextra -O0 "%" -o "%:r" && ./"%:r" ; rm ./"%:r"
+
+" Custom keybindings
 nnoremap <silent><A-j> :move .+1 <CR>==
 vnoremap <silent><A-j> :move '>+1 <CR>gv=gv
-inoremap <silent><A-j> <ESC>:move .+1<CR>==gi
+inoremap <silent><A-j> <ESC>:move .+1 <CR>==gi
 
 nnoremap <silent><A-k> :move .-2 <CR>==
-xnoremap <silent><A-k> :move '<-2 <CR>gv=gv
-inoremap <silent><A-k> <ESC>:move .-2<CR>==gi
+vnoremap <silent><A-k> :move '<-2 <CR>gv=gv
+inoremap <silent><A-k> <ESC>:move .-2 <CR>==gi
 
-nnoremap <silent><S-CR> <CMD>normal! o <CR>
-nnoremap <silent><F2> :if &wrap <BAR> set nowrap <CR> <BAR> else <BAR> set wrap <CR> <BAR> endif <CR><CR>
-nnoremap <silent><C-S-CR> <CMD>normal! O <CR>
-nnoremap <silent><C-Space> <CMD>NERDTreeToggle<CR>
-cnoremap <silent><C-CR> <INS><CR><ESC>
+" Create new line below (Shift + Enter)
+nnoremap <silent><S-CR> :normal! o <CR>
+
+" Toggle NerdTree with Ctrl + Space
+nnoremap <silent><C-Space> :NERDTreeToggle<CR>
+
+
+" Function to toggle 'wrap' setting
+function! ToggleWrap()
+    if &wrap
+        set nowrap
+    else
+        set wrap
+    endif
+endfunction
+
+" Wrap/unwrap toggle with F2
+nnoremap <silent><F2> :call ToggleWrap() <CR>
+command! ToggleWrap :call ToggleWrap()
+
+" Install vim-plug (plugin manager)
+command! InstallPlug call InstallPlug()
 
 function! InstallPlug()
     call system("curl -fLo ~/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim")

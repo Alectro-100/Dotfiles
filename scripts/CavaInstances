@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-FLAG="$1"
 TEMP_FILE="/tmp/.cava_instances.tmp"
 TIMESTAMP="/tmp/.timestamp_cava_instances.tmp"
 speed=0.02
@@ -12,7 +11,7 @@ function KILL_CAVA() {
 
 function CAVA() {
     for (( i=0 ; i < 6 ; i++ )); do
-        footclient --server-socket=/tmp/.foot.sock -e "cava" &>/dev/null &
+        footclient -e "cava" &>/dev/null &
         echo $! >> "${TEMP_FILE}"
         sleep "$speed"
         disown
@@ -20,20 +19,30 @@ function CAVA() {
     date +%s > "${TIMESTAMP}"
 }
 
-[[ "${FLAG}" == "CLEAN" ]] && {
-    KILL_CAVA
-    rm -f "${TEMP_FILE}" "${TIMESTAMP}"
-    exit 0
+function main() {
+    local flag="$1"
+    local foot_sock="${XDG_RUNTIME_DIR}/foot${WAYLAND_DISPLAY/#/-}.sock"
+
+    [[ -S "${foot_sock}" ]] || foot --server="${foot_sock}"
+
+    [[ "${flag}" == "CLEAN" ]] && {
+        KILL_CAVA
+        rm -f "${TEMP_FILE}" "${TIMESTAMP}"
+        exit 0
+    }
+
+    # last_time=$(cat "${TIMESTAMP}")
+    # now=$(date +%s)
+    # elapsed=$(( now - last_time ))
+
+    # if (( elapsed <= threshold )); then
+    #     KILL_CAVA
+    # else
+    #     CAVA
+    # fi
+
+    CAVA
 }
 
-# last_time=$(cat "${TIMESTAMP}")
-# now=$(date +%s)
-# elapsed=$(( now - last_time ))
+main "$@"
 
-# if (( elapsed <= threshold )); then
-#     KILL_CAVA
-# else
-#     CAVA
-# fi
-
-CAVA

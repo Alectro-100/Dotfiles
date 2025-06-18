@@ -1,89 +1,54 @@
-### Inner gaps
+### Inner gaps ###
 gaps inner 4
 
-### Defaut Font
+### Default Font ###
 font pango: SourceCodePro Large 4
 
-### Start foot server
-exec_always --no-startup-id foot --server=/tmp/.foot.sock
-
-### Policykit agent
-exec --no-startup-id /usr/lib/polkit-kde-authentication-agent-1
-
-### Autotiling
-exec --no-startup-id autotiling
-
-### Autotiling
-exec --no-startup-id ${HOME}/.scripts/something
-
-### What's being played now?, show it in the waybar
-exec_always --no-startup-id ${HOME}/.bin/NowPlaying
-
-### Easyeffects
-exec --no-startup-id bash -c \
-      '$( (swaymsg exec flatpak run com.github.wwmm.easyeffects) ; sleep 5 ; swaymsg "[app_id="com.github.wwmm.easyeffects"] move scratchpad" )'
-
-### Sway lock
-exec_always --no-startup-id swayidle -w \
-        timeout 120 ".config/sway/lock_screen/lock_screen" \
-        resume "swaymsg 'output * power on'" \
-        before-sleep "swaylock --daemonize --image $HOME/.config/sway/lock_screen/bg.jpg"
-
-### Waybar
-bar {
-    swaybar_command waybar
-}
-
-### Set $mod (Mod4 or Super) for logo key
-set $mod Super
-
-### Vim bindings everywhere
-set $left h
-set $down j
-set $up k
-set $right l
-
-### My Application launcher
-set $menu_wofi wofi -W 40% -H 32% --gtk-dark --allow-images --config $HOME/.config/wofi/wofi.conf --allow-markup --hide-scroll --prompt="Search" --show drun
-set $menu_rofi rofi -show-icons -font Hack -theme material -show drun
-
-### Output devices
-    output * {
-        # My Wallpaper
-        background wallpapers/main.wallpaper fill
-        mode 1920x1080@144Hz
-        scale 1
-        transform normal
-        scale_filter smart
-        max_render_time off
-        render_bit_depth 8
-        subpixel rgb
-        adaptive_sync on
-        allow_tearing yes
-        color_profile icc /usr/share/color/icc/colord/sRGB.icc
+### Waybar ###
+    bar {
+        swaybar_command waybar
     }
 
-### Enable Xwayland
-xwayland enabled
+### Output devices (Display) ###
+    set $OUTPUT         *
+    set $OUTPUT_DP      eDP-1
+    set $OUTPUT_HDMI    HDMI-A-1
 
-### Input devices
+    set $OUTPUT $OUTPUT_DP
 
+    workspace $OUTPUT output $OUTPUT
+    output $OUTPUT  background wallpapers/main.wallpaper fill
+    output $OUTPUT  mode 1920x1080@144Hz
+    output $OUTPUT  scale 1
+    output $OUTPUT  transform normal
+    output $OUTPUT  scale_filter smart
+    output $OUTPUT  max_render_time off
+    output $OUTPUT  render_bit_depth 8
+    output $OUTPUT  subpixel rgb
+    output $OUTPUT  adaptive_sync on
+    output $OUTPUT  allow_tearing yes
+    output $OUTPUT  color_profile icc /usr/share/color/icc/colord/sRGB.icc
 
-    # Hide cursor in 1 secs
+### Enable Xwayland ###
+    xwayland enabled
+
+### Input devices ###
+
+    #* Hide cursor in 1 secs
     seat * {
         hide_cursor 1000
         hide_cursor when-typing enable
         pointer_constraint enable
     }
 
-    # Any Keyboard
+    #* Any Keyboard
     input type:keyboard {
         xkb_layout us,es,ru
         repeat_delay 160
         repeat_rate 60
     }
 
-    # Optical Mouse
+    #* Optical Mouse
     input 12538:768:USB_Optical_Mouse {
         natural_scroll disabled
         dwt enabled
@@ -92,7 +57,7 @@ xwayland enabled
         pointer_accel 1
     }
 
-    # Any Trackpad
+    #* Any Trackpad
     input type:touchpad {
         accel_profile adaptive   # trackpad acceleration
         click_method clickfinger # Clickfinger
@@ -108,259 +73,318 @@ xwayland enabled
         drag enabled
     }
 
+### Set $mod (Mod4 or Super) for logo key ###
+    set $mod Super
 
-### Key bindings
-
-    # Bring my Text-fu terminal
-    # foot
-    bindsym $mod+Return exec footclient --server-socket=/tmp/.foot.sock
-    # alacritty
-    bindsym $mod+Shift+Return exec alacritty
-
-    # Good File Manager
-    bindsym Alt+E exec XDG_CURRENT_DESKTOP=kde GTK_THEME=Adwaita:dark QT_QPA_PLATFORMTHEME=qt6 dolphin
-    bindsym $mod+E exec XDG_CURRENT_DESKTOP=kde nautilus
-
-    # Kill the focused windows because sometimes it feels good
-    bindsym $mod+q kill
-    bindsym Alt+F4 kill
-
-    # Lauch wofi, my friend who fetches all the applications for me
-    bindsym Alt+Space exec $menu_wofi
-    bindsym Alt+Shift+Space exec $menu_rofi
-
-    bindsym $mod+D exec $HOME/.config/waybar/scripts/application_launcher
-
-    # Mouse for dragging.
-    floating_modifier $mod normal
-
-    # Reload the configuration file and start the waybar
-    bindsym $mod+Shift+c exec swaymsg reload
-
-    # Exit sway (Kicks you out of your Wayland session)
-    bindsym $mod+Shift+E exec swaymsg exit
-
-    # Move your focus around, with VIM bindings!
-    bindsym $mod+$left focus left
-    bindsym $mod+$down focus down
-    bindsym $mod+$up focus up
-    bindsym $mod+$right focus right
-
-    # Move the focused window in floating mode, VIM like
-    bindsym $mod+Shift+$left move left
-    bindsym $mod+Shift+$down move down
-    bindsym $mod+Shift+$up move up
-    bindsym $mod+Shift+$right move right
-
-    # Exactly same thing, but with arrow keys
-    bindsym $mod+Shift+Left move left
-    bindsym $mod+Shift+Down move down
-    bindsym $mod+Shift+Up move up
-    bindsym $mod+Shift+Right move right
-
-    bindsym $mod+Ctrl+$up resize shrink height 14px
-    bindsym $mod+Ctrl+$down resize grow height 14px
-    bindsym $mod+Ctrl+$left resize shrink width 14px
-    bindsym $mod+Ctrl+$right resize grow width 14px
-
-### Workspaces:
-    # Switch to workspace
-    bindsym $mod+1 workspace number 1
-    bindsym $mod+2 workspace number 2
-    bindsym $mod+3 workspace number 3
-    bindsym $mod+4 workspace number 4
-    bindsym $mod+5 workspace number 5
-    bindsym $mod+6 workspace number 6
-    # Move focused container to workspace
-    bindsym $mod+Shift+1 move container to workspace number 1
-    bindsym $mod+Shift+2 move container to workspace number 2
-    bindsym $mod+Shift+3 move container to workspace number 3
-    bindsym $mod+Shift+4 move container to workspace number 4
-    bindsym $mod+Shift+5 move container to workspace number 5
-    bindsym $mod+Shift+6 move container to workspace number 6
+    # Alphabets
+    set $backslash 51
+    set $A  38
+    set $B  56
+    set $C  54
+    set $D  40
+    set $E  26
+    set $F  41
+    set $G  42
+    set $H  43
+    set $I  31
+    set $J  44
+    set $K  45
+    set $L  46
+    set $M  58
+    set $N  57
+    set $O  32
+    set $P  33
+    set $Q  24
+    set $R  27
+    set $S  39
+    set $T  28
+    set $U  30
+    set $V  55
+    set $W  25
+    set $X  53
+    set $Y  29
+    set $Z  52
 
 
-### Layout stuff:
-    # Initial layout in a new an empty workspace
-    workspace_layout default
-    # Switch the current container between different layout styles
-    bindsym $mod+S layout stacking
-    bindsym $mod+T layout tabbed
-    # decide the spawn side of the new window
-    # bindsym $mod+B split horizontal
-    # bindsym $mod+V split vertical
+### Vim bindings everywhere ###
+    set $left h
+    set $down j
+    set $up k
+    set $right l
 
-    # Toggle btween splith and splitv
-    bindsym $mod+V split toggle
-    # toggle split mode (Stacking, tabbed, and last split layout)
-    bindsym $mod+B layout toggle split
-    # Pop the stacking window from the container
-    bindsym $mod+N split none
-    # Fullscreen!
-    bindsym $mod+F fullscreen
-    # Jump the focus between tiling and floating mode
-    bindsym $mod+Shift+Space floating toggle
-    # Swap focus between the tiling area and the floating area
-    bindsym $mod+Space focus mode_toggle
-    # Move focus to the parent container
-    bindsym $mod+A focus parent
+### My Application launcher ###
+    set $menu_wofi wofi -W 40% -H 32% --gtk-dark --allow-images --config $HOME/.config/wofi/wofi.conf --allow-markup --hide-scroll --prompt="Search" --show drun
+    set $menu_rofi rofi -show-icons -font Hack -theme material -show drun
 
-### Scratchpad:
-    # Sway has a "scratchpad", which is a bag of holding for windows.
-    # Move the focused window into scratchpad because It's deamon
-    bindsym $mod+Shift+minus move scratchpad
-    # Cycle through the windows inside scratchpad.
-    bindsym $mod+minus scratchpad show
 
-### Resizing containers:
-    bindsym $mod+r mode resize
-    mode resize {
-        bindsym $up resize shrink height 14px
-        bindsym $down resize grow height 14px
-        bindsym $left resize shrink width 14px
-        bindsym $right resize grow width 14px
+### Auto Start ###
+    exec --no-startup-id /usr/lib/polkit-kde-authentication-agent-1
+    exec --no-startup-id autotiling
+    exec --no-startup-id ${HOME}/.scripts/something
+    exec --no-startup-id  bash -c \
+        '$( (swaymsg exec flatpak run com.github.wwmm.easyeffects) ; sleep 5 ; swaymsg "[app_id="com.github.wwmm.easyeffects"] move scratchpad" )'
 
-        bindsym Return mode default
-        bindsym Escape mode default
-    }
+    exec_always --no-startup-id bash -c 'sock="${XDG_RUNTIME_DIR}/foot${WAYLAND_DISPLAY/#/-}.sock"; [[ -S "${sock}" ]] || foot --server=${sock}'
+    exec_always --no-startup-id ${HOME}/.bin/NowPlaying
+    exec_always --no-startup-id swayidle -w \
+            timeout 120 ".config/sway/lock_screen/lock_screen" \
+            resume "swaymsg 'output * power on'" \
+            before-sleep "swaylock --daemonize --image $HOME/.config/sway/lock_screen/bg.jpg"
 
-### Utilities:
-    # Special keys to adjust volume via PulseAudio
-    bindsym --locked {
-        XF86AudioMute exec pactl set-sink-mute \@DEFAULT_SINK@ toggle
-        XF86AudioLowerVolume exec pactl set-sink-volume \@DEFAULT_SINK@ -5%
-        XF86AudioRaiseVolume exec pactl set-sink-volume \@DEFAULT_SINK@ +5%
-        XF86AudioMicMute exec pactl set-source-mute \@DEFAULT_SOURCE@ toggle
-    }
+### Window rules ###
+    # Set opacity for all windows
+        for_window [app_id=".*"] opacity 0.98
+    # Border of newly spawned window
+        for_window [class=".*"] border pixel 1
+    # Border of floating window
+        for_window [class=".*"] default_floating_border pixel 1
+    # Transparancy levels for applications
+        for_window [app_id="foot"] opacity 0.98
+        for_window [app_id="waterfox|kitty"] opacity 1
+    # Any App Id with 'Pop-Up', make it float it
+        for_window [app_id="Pop-Up"] floating enable, move position center
+    # Enabele floating don't tile
+        for_window [app_id="^waterfox$|^com.rtosta.zapzap$|^org.pulseaudio.pavucontrol$|^pavucontrol$|^com.github.wwmm.easyeffects"] floating enable
+        for_window [app_id="^org.kde.dolphin$|^org.kde.plasma-systemmonitor$|^blueman-manager$|^org.kde.konsole"] floating enable
+        for_window [app_id="^org.kde.okular$|^org.qutebrowser.qutebrowser$|^org.kde.kclock$"] floating enable
+        for_window [class="^Brave-browser$|^ZapZap$|^discord$"] floating enable
 
-    # Special keys to adjust brightness via brightnessctl
-    bindsym --locked {
-        XF86MonBrightnessDown exec brightnessctl set 5%-
-        XF86MonBrightnessUp exec brightnessctl set 5%+
-    }
-
-    ## Win+Alt or $mod+Alt keybindings for systemctl related settings
-
-    # Edit this config with neovim or vim
-    bindsym $mod+I exec bash -c \
-        '$(CONF="${HOME}/.config/sway/config"; command -v nvim && EDIT=nvim || EDIT=vim; \
-            foot -e $EDIT --clean --noplugin -c "colorscheme slate\nset nu\nset relativenumber" "${CONF}")'
-
-    # What's my selected screen resolution?
-    bindsym $mod+Shift+G exec bash -c \
-        '$(Res="$(slurp)" && notify-send "${Res}")'
-
-    # Shutting down... Because I need a nap, you deserve one too (Mod+Alt+Shift+P)
-    bindsym $mod+Alt+Shift+P exec bash -c \
-        '$(notify-send "Shutting down... because I need a nap" ; sleep 2 ; swaymsg exit; systemctl poweroff --now)'
-
-    # Shutting down ($mod+Alt+P)
-    bindsym $mod+Alt+P exec bash -c \
-        '$(swaymsg exit; systemctl poweroff --now)'
-
-    # Sometimes life just needs refresh ($mod+Alt+Shift+R)
-    bindsym $mod+Alt+Shift+R exec bash -c \
-        '$(notify-send "REBOOTING... Sometimes you need to restart!" ; sleep 2 ; swaymsg exit; systemctl reboot --now)'
-
-    # Just Reboot (Mod+Alt+R)
-    bindsym $mod+Alt+R exec bash -c \
-        '$(swaymsg exit; systemctl reboot --now)'
-
-    # I'm going Sleep (Mod+Alt+Shift+delete)
-    bindsym $mod+Alt+Shift+delete exec bash -c \
-        '$(notify-send "I need some Rest"; sleep 2 ; swaymsg exit; systemctl suspend --now)'
-
-    # Sleep (Alt+Ctrl+delete)
-    bindsym $mod+Alt+delete exec bash -c \
-        '$(systemctl suspend --now)'
-
-    # Hybrid sleep, like sleep but cooler (Mod+Alt+S)
-    bindsym $mod+Alt+S exec bash -c \
-        '$(systemctl hybrid-sleep --now)'
-
-    # Execute whatever the hell that script does
-    bindsym Tab+Z exec bash -c \
-        '$(foot -e $HOME/.scripts/exec_me)'
-
-    # Journal time: Let's document the mess
-    bindsym Tab+J exec bash -c \
-        '$(foot -e $HOME/.bin/JournalToday nvim)'
-
-    # List of Emojies in rofi-emoji
-    bindsym Alt+Shift+E exec bash -c \
-        '$(rofi -modi emoji -show emoji)'
-
-    # Start recording fullscreen! (Mod+Alt+V)
-    bindsym $mod+Alt+V exec bash -c \
-        '$(DIR="${HOME}/WF_Recorder"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; pidof wf-recorder > /dev/null || wf-recorder --pixel-format=yuv420p --codec=h264_nvenc -p preset=fast --framerate=40 --audio="$(pactl get-default-sink).monitor" --file="${DIR}/Rec_$(date +%d-%b-%Y_%H:%M:%S).mkv")'
-
-    # Start recording on selected ratio of the screen (Mod+Alt+B)
-    bindsym $mod+Alt+B exec bash -c \
-        '$(DIR="${HOME}/WF_Recorder"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; pidof wf-recorder > /dev/null || wf-recorder --pixel-format=yuv420p --codec=h264_nvenc -p preset=fast --framerate=40 --audio="$(pactl get-default-sink).monitor" -g "$(slurp)" --file="${DIR}/Rec_$(date +%d-%b-%Y_%H:%M:%S).mkv")'
-
-    # Stop recording send INT sig to the recorder (Mod+Alt+C)
-    bindsym $mod+Alt+C exec bash -c \
-        '$(kill -INT $(pidof wf-recorder))'
-
-    # Take screenshot of fullscreen! (Mod+PrtSc)
-    bindsym $mod+Print exec bash -c \
-        '$(DIR="${HOME}/Grim_Screenshots"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; grim "${DIR}/$(date +%d-%b-%Y_%H:%M:%S).png")'
-
-    # Screenshot of selected area (Mod+Shift+S)
-    bindsym $mod+Shift+S exec bash -c \
-        '$(DIR="${HOME}/Grim_Screenshots"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; grim -g "$(slurp)" "${DIR}/$(date +%d-%b-%Y_%H:%M:%S).png")'
-
-    # System monitors
-    # htop
-    bindsym Ctrl+Shift+Escape exec bash -c \
-        '$(  foot -e htop ||  foot -e btop )'
-    # btop
-    bindsym Ctrl+Escape exec bash -c \
-        '$( foot -e btop || foot -e htop )'
-    # Plasma system monitor
-    bindsym $mod+Escape exec bash -c \
-        '$( XDG_CURRENT_DESKTOP=KDE GTK_THEME=Adwaita:dark plasma-systemmonitor || ( foot -e htop || sudo pacman -Sy htop --noconfirm))'
-
-    ### Toggle keyboard layout
-    bindsym $mod+Alt+space input type:keyboard xkb_switch_layout next
-
-    ### Create cava windows to look cool
-    bindsym $mod+P exec "$HOME/.bin/CavaInstances"
-    bindsym $mod+O exec "$HOME/.bin/CavaInstances CLEAN"
-
-    ### Keyboard centric browser
-    bindsym Alt+B exec qutebrowser
-
-    ### Window rules
-    for_window {
-        # Set opacity for all windows
-        [app_id=".*"] opacity 0.98
-        # Border of newly spawned window
-        [class=".*"] border pixel 1
-        # Border of floating window
-        [class=".*"] default_floating_border pixel 1
-        # Transparancy levels for applications
-        [app_id="foot"] opacity 0.98
-        [app_id="waterfox|kitty"] opacity 1
-        # Enabele floating don't tile
-        [app_id="^waterfox$|^com.rtosta.zapzap$|^org.pulseaudio.pavucontrol$|^pavucontrol$|^com.github.wwmm.easyeffects"] floating enable
-        [app_id="^org.kde.dolphin$|^org.kde.plasma-systemmonitor$|^blueman-manager$|^org.kde.konsole"] floating enable
-        [app_id="^org.kde.okular$|^org.qutebrowser.qutebrowser$|^org.kde.kclock$"] floating enable
-        [class="^Brave-browser$|^ZapZap$|^discord$"] floating enable
-    }
-    # Thickness of the titlebar border in pixels
-    titlebar_border_thickness 0
-    # Padding of the text in the titlebar
-    titlebar_padding 0
     # <outer-border-color> <frame-color> <title-text-color> <next-tiling-indicator-color>
-    client.focused #333333 #6600AA #DDDDDD #6600AA
-    client.unfocused #333333 #666666 #DDDDDD #666666
+        client.focused #333333 #6600AA #DDDDDD #6600AA
+        client.unfocused #333333 #666666 #DDDDDD #666666
+
+### Window Styling ###
+    # Thickness of the titlebar border in pixels
+        titlebar_border_thickness 0
+    # Padding of the text in the titlebar
+        titlebar_padding 0
     # Align titlebar text
-    title_align center
+        title_align center
     # Default border
-    default_border none
+        default_border none
     # Hide the titlebar on stacked or tabbed containers with one child
-    hide_edge_borders --i3 none
+        hide_edge_borders --i3 none
+
+### Keybindings for Containers/Workspaces/Layout/Behaviour/Volume/Brightnes/Focus ###
+
+    #* Reload the configuration file and start the waybar *#
+        bindsym $mod+Shift+c exec swaymsg reload
+
+    #* Exit sway (Kicks you out of your Wayland session) *#
+        bindsym $mod+Shift+E exec swaymsg exit
+
+    #* Mouse for dragging *#
+        floating_modifier $mod normal
+
+    #* Switch to workspace *#
+        bindsym $mod+1 workspace number 1
+        bindsym $mod+2 workspace number 2
+        bindsym $mod+3 workspace number 3
+        bindsym $mod+4 workspace number 4
+        bindsym $mod+5 workspace number 5
+        bindsym $mod+6 workspace number 6
+
+    #* Move focused container to workspace *#
+        bindsym $mod+Shift+1 move container to workspace number 1
+        bindsym $mod+Shift+2 move container to workspace number 2
+        bindsym $mod+Shift+3 move container to workspace number 3
+        bindsym $mod+Shift+4 move container to workspace number 4
+        bindsym $mod+Shift+5 move container to workspace number 5
+        bindsym $mod+Shift+6 move container to workspace number 6
+
+    #* Special keys to adjust volume via PulseAudio *#
+        bindsym --locked {
+            XF86AudioMute exec pactl set-sink-mute \@DEFAULT_SINK@ toggle
+            XF86AudioLowerVolume exec pactl set-sink-volume \@DEFAULT_SINK@ -5%
+            XF86AudioRaiseVolume exec pactl set-sink-volume \@DEFAULT_SINK@ +5%
+            XF86AudioMicMute exec pactl set-source-mute \@DEFAULT_SOURCE@ toggle
+        }
+
+    #* Special keys to adjust brightness via brightnessctl *#
+        bindsym --locked {
+            XF86MonBrightnessDown exec brightnessctl set 5%-
+            XF86MonBrightnessUp exec brightnessctl set 5%+
+        }
+
+    #* Move your focus around, mode: VIM (hjkl) *#
+        bindsym $mod+$left focus left
+        bindsym $mod+$down focus down
+        bindsym $mod+$up focus up
+        bindsym $mod+$right focus right
+
+    #* Move the focused window in floating mode, modes: VIM (hjkl) or arrow keys *#
+        bindsym $mod+Shift+$left move left
+        bindsym $mod+Shift+Left move left
+        bindsym $mod+Shift+$down move down
+        bindsym $mod+Shift+Down move down
+        bindsym $mod+Shift+$up move up
+        bindsym $mod+Shift+Up move up
+        bindsym $mod+Shift+$right move right
+        bindsym $mod+Shift+Right move right
+
+    #* Resizing containers *#
+        bindsym $mod+r mode resize
+        mode resize {
+            bindsym $up resize shrink height 14px
+            bindsym $down resize grow height 14px
+            bindsym $left resize shrink width 14px
+            bindsym $right resize grow width 14px
+
+            bindsym Return mode default
+            bindsym Escape mode default
+        }
+
+        # bindsym $mod+Ctrl+$up resize shrink height 14px
+        # bindsym $mod+Ctrl+$down resize grow height 14px
+        # bindsym $mod+Ctrl+$left resize shrink width 14px
+        # bindsym $mod+Ctrl+$right resize grow width 14px
+
+        bindsym {
+            $mod+Ctrl+$up resize shrink height 14px
+            $mod+Ctrl+$down resize grow height 14px
+            $mod+Ctrl+$left resize shrink width 14px
+            $mod+Ctrl+$right resize grow width 14px
+        }
+
+    #* Layout stuff *#
+        # Initial layout in a new an empty workspace
+            workspace_layout default
+        # Switch the current container between different layout styles
+            bindsym $mod+S layout stacking
+            bindsym $mod+T layout tabbed
+        # decide the spawn side of the new window
+        # bindsym $mod+B split horizontal
+        # bindsym $mod+V split vertical
+
+        # Toggle btween splith and splitv
+            bindsym $mod+V split toggle
+        # toggle split mode (Stacking, tabbed, and last split layout)
+            bindsym $mod+B layout toggle split
+        # Pop the stacking window from the container
+            bindsym $mod+N split none
+        # Fullscreen!
+            bindsym $mod+F fullscreen
+        # Jump the focus between tiling and floating mode
+            bindsym $mod+Shift+Space floating toggle
+        # Swap focus between the tiling area and the floating area
+            bindsym $mod+Space focus mode_toggle
+        # Move focus to the parent container
+            bindsym $mod+A focus parent
+
+        ## Scratchpad:
+        # Sway has a "scratchpad", which is a bag of holding for windows.
+        # Move the focused window into scratchpad because It's deamon
+            bindsym $mod+Shift+minus move scratchpad
+        # Cycle through the windows inside scratchpad.
+            bindsym $mod+minus scratchpad show
+
+
+### My Custom Key-bindings ###
+
+    #* Executable Binaries *#
+        # Keyboard centric browser
+            bindsym Tab+B exec qutebrowser
+        # Bring my Text-fu terminal
+            bindsym $mod+Return exec footclient
+            bindsym $mod+Shift+Return exec alacritty
+
+        # Good File Managers
+            bindsym Alt+E exec XDG_CURRENT_DESKTOP=kde GTK_THEME=Adwaita:dark QT_QPA_PLATFORMTHEME=qt6 dolphin
+            bindsym $mod+E exec XDG_CURRENT_DESKTOP=kde nautilus
+        # Lauch wofi, my friend who fetches all the applications for me
+            bindsym Alt+Space exec $menu_wofi
+            bindsym Alt+Shift+Space exec $menu_rofi
+
+    #* Kill the focused windows *#
+        bindsym $mod+q kill
+        bindsym Alt+F4 kill
+
+    #* Direct Shell Commands *#
+        #$ Screen Recording $#
+            # Start recording fullscreen! (Mod+Alt+V)
+                bindsym $mod+Alt+V exec bash -c \
+                    '$(DIR="${HOME}/WF_Recorder"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; pidof wf-recorder > /dev/null || wf-recorder --pixel-format=yuv420p --codec=h264_nvenc -p preset=fast --framerate=40 --audio="$(pactl get-default-sink).monitor" --file="${DIR}/Rec_$(date +%d-%b-%Y_%H:%M:%S).mkv")'
+            # Start recording on selected ratio of the screen (Mod+Alt+B)
+                bindsym $mod+Alt+B exec bash -c \
+                    '$(DIR="${HOME}/WF_Recorder"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; pidof wf-recorder > /dev/null || wf-recorder --pixel-format=yuv420p --codec=h264_nvenc -p preset=fast --framerate=40 --audio="$(pactl get-default-sink).monitor" -g "$(slurp)" --file="${DIR}/Rec_$(date +%d-%b-%Y_%H:%M:%S).mkv")'
+            # Stop recording send INT sig to the recorder (Mod+Alt+C)
+                bindsym $mod+Alt+C exec bash -c \
+                    '$(kill -INT $(pidof wf-recorder))'
+
+        #$ Screenshot $#
+            # Take screenshot of fullscreen! (Mod+PrtSc)
+               bindsym $mod+Print exec bash -c \
+                   '$(DIR="${HOME}/Grim_Screenshots"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; grim "${DIR}/$(date +%d-%b-%Y_%H:%M:%S).png")'
+            # Screenshot of selected area (Mod+Shift+S)
+                bindsym $mod+Shift+S exec bash -c \
+                    '$(DIR="${HOME}/Grim_Screenshots"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; grim -g "$(slurp)" "${DIR}/$(date +%d-%b-%Y_%H:%M:%S).png")'
+
+        # Edit this (sway config) with neovim or vim
+            bindsym $mod+I exec bash -c \
+                'CONF=${HOME}/.config/sway/config; command -v nvim && EDIT=nvim || EDIT=vim; foot ${EDIT} --clean -c "colorscheme slate\nset tabstop=4\nset shiftwidth=4\nset nu\nset relativenumber" ${CONF}'
+
+        # Shutdown (Mod+Alt+Shift+P)
+            bindsym $mod+Alt+Shift+P exec bash -c \
+                '$(notify-send "Shutting down... because I need a nap" ; sleep 2 ; swaymsg exit; systemctl poweroff --now)'
+        # Reboot/Restart ($mod+Alt+Shift+R)
+            bindsym $mod+Alt+Shift+R exec bash -c \
+                '$(notify-send "REBOOTING... Sometimes you need to restart!" ; sleep 2 ; swaymsg exit; systemctl reboot --now)'
+        # Sleep (Mod+Alt+Shift+delete)
+            bindsym $mod+Alt+Shift+delete exec bash -c \
+                '$(notify-send "I need some Rest"; sleep 2 ; swaymsg exit; systemctl suspend --now)'
+
+        # Shutdown  ($mod+Alt+P)
+            bindsym $mod+Alt+P exec bash -c \
+                '$(swaymsg exit; systemctl poweroff --now)'
+        # Reboot/Restart (Mod+Alt+R)
+            bindsym $mod+Alt+R exec bash -c \
+                '$(swaymsg exit; systemctl reboot --now)'
+        # Sleep (Alt+Ctrl+delete)
+            bindsym $mod+Alt+delete exec bash -c \
+                '$(systemctl suspend --now)'
+
+        # Hybrid sleep, like sleep but cooler (Mod+Alt+S)
+            bindsym $mod+Alt+S exec bash -c \
+                '$(systemctl hybrid-sleep --now)'
+
+        # What's my selected screen resolution? (Mod+Shift+G)
+            bindsym $mod+Shift+G exec bash -c \
+                '$(Res="$(slurp)" && notify-send "${Res}")'
+
+        # List of Emojies in rofi-emoji (Shift+Tab+E)
+            bindsym Shift+Tab+E exec bash -c \
+                '$(rofi -modi emoji -show emoji)'
+
+
+    #* System monitors *#
+        # htop
+        bindsym Ctrl+Shift+Escape exec bash -c \
+            '$(  foot -e htop ||  foot -e btop )'
+        # btop
+        bindsym Ctrl+Escape exec bash -c \
+            '$( foot -e btop || foot -e htop )'
+        # Plasma system monitor
+        bindsym $mod+Escape exec bash -c \
+            '$( XDG_CURRENT_DESKTOP=KDE GTK_THEME=Adwaita:dark plasma-systemmonitor || ( foot -e htop || sudo pacman -Sy htop --noconfirm))'
+
+    #* Toggle keyboard layout *#
+        bindsym $mod+Alt+space input type:keyboard xkb_switch_layout next
+
+    #* Scripts *#
+        # An application launcher
+           bindsym $mod+D exec ${HOME}/.config/waybar/scripts/application_launcher
+
+        # Create cava windows to look cool
+           bindsym $mod+P exec "${HOME}/.bin/CavaInstances"
+           bindsym $mod+O exec "${HOME}/.bin/CavaInstances CLEAN"
+
+        # Execute whatever the hell that script does
+           bindcode $backslash+$Z exec bash -c \
+               '$(foot -e ${HOME}/.scripts/exec_me)'
+
+        # Journal time: Let's document the mess
+            bindcode $backslash+$J exec bash -c \
+                '$(foot -e ${HOME}/.bin/JournalToday nvim)'
 
 
 ### Additional configuration
