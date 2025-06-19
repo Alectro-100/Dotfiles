@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# set -euo pipefail
+
 IFS=$'\n'
 RED="\033[38;2;244;10;10m"
 GREEN="\033[38;2;80;250;100m"
@@ -19,8 +21,9 @@ SELECTED=()
 CURRENTLY_PLAYING=()
 LOOP=0
 SHUFFLE=0
+MPV_PID=0
 
-readonly MPV_SOCKET_DIR="/tmp/.MPV"
+readonly MPV_SOCKET_DIR="/tmp/mpv_playing"
 readonly SOCKET="mpv_socket-$RANDOM"
 readonly MPV_SOCKET="${MPV_SOCKET_DIR}/$SOCKET"
 readonly MPV_LOG="${MPV_SOCKET_DIR}/mpv_log.log"
@@ -29,7 +32,8 @@ readonly MPV_LOG="${MPV_SOCKET_DIR}/mpv_log.log"
 #     echo '{"text": "", "class": "inactive"}"' | socat - UNIX-CONNECT:${MPV_SOCKET}
 # }
 
-trap Exit SIGTERM SIGINT
+trap 'Exit 0' SIGINT SIGQUIT
+trap 'Exit 1' SIGTERM
 
 function LOG() {
     local type_="$1"
@@ -39,7 +43,7 @@ function LOG() {
             [[ -z "${QUIET}" ]] && echo -e "[${GREEN}*${NC}]: $@"
             ;;
         command_)
-            [[ -z "${QUIET}" ]] && printf "[${GREEN}*${NC}]: "; printf "%b " "$@\n\b"
+            [[ -z "${QUIET}" ]] && printf "[${GREEN}*${NC}]: "; printf "%b " "$@\b\n"
             ;;
         warn)
             echo -e "[${WARN}^${NC}]: $@"
@@ -54,8 +58,28 @@ function Exit() {
     [[ -n $LOGGER_PID ]] && kill $LOGGER_PID 2> /dev/null
     rm -f "${MPV_SOCKET}" "$MPV_LOG"
     rmdir ${MPV_SOCKET_DIR} &> /dev/null
-    printf "\nExiting..."
+    printf "\nExiting...\n"
     exit $1
+}
+
+function CheckDependencies() {
+    local -a deps=(mpv fzf jq ncat)
+    local -a missing=()
+
+    for cmd in "${deps[@]}"; do
+        if ! command -v "${cmd}" &> /dev/null; then
+            missing+=("${cmd}")
+        fi
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        LOG error "Missing dependencies:"
+        for dep in "${missing[@]}"; do
+            echo -e "  - ${RED}${dep}${NC}"
+        done
+        echo -e "${WARN}Please install the missing dependencies and try again.${NC}"
+        Exit 1
+    fi
 }
 
 function Usage() {
@@ -95,21 +119,27 @@ function IPC_() {
             arr+=(', ')
         fi
     done
-    if [[ -S "${MPV_SOCKET}" ]]; then
-        echo "{ \"command\": [ ${arr[@]} ] }" | ncat -U "${MPV_SOCKET}" | jq ".$data"
+    if [[ -S "${MPV_SOCKET}" ]] && pgrep -x mpv | grep -q -o $MPV_PID; then
+        echo "{ \"command\": [ ${arr[@]} ] }" | ncat -U "${MPV_SOCKET}" | jq ".$data" 2> /dev/null
     else
         Exit 1
     fi
 }
 
 function BackgroundStatusLogger() {
-    while true; do
+    local title= pos= dur= prev_title= prev_pos=
+    printf "\n"
+    while pgrep -x mpv | grep -q -o $MPV_PID; do
         if [[ -S "${MPV_SOCKET}" ]]; then
             title=$(IPC_ 'data' '"get_property"' '"media-title"') &> /dev/null
             pos=$(IPC_ 'data' '"get_property"' '"time-pos"' | awk '{printf "%d:%02d", int($1/60), int($1%60)}') &> /dev/null
             dur=$(IPC_ 'data' '"get_property"' '"duration"' | awk '{printf "%d:%02d", int($1/60), int($1%60)}') &> /dev/null
         fi
-        printf "\r\033[2K[${BLUE}*${NC}]: Playing: %b%s%b | %s / %s" "${GREEN}" "${title%.*}" "${NC}" "$pos" "$dur"
+        [[ "$title" != "$prev_title" || "$pos" != "$prev_pos" ]] && {
+            printf "\r\033[2K[${BLUE}*${NC}]: Playing: ${GREEN}%s"${NC}" | %s / %s" "${title}" "$pos" "$dur"
+            prev_title="$title"
+            prev_pos=$pos
+        }
         sleep 0.5
     done
 }
@@ -117,7 +147,8 @@ function BackgroundStatusLogger() {
 function HandleIpcControl() {
     local current_track=
     local togglePlay=false
-    while true; do
+    local read_next=
+    while pgrep -x mpv | grep -q -o $MPV_PID; do
         IFS= read -rsn1 KEY
         case "${KEY}" in
             q|Q) IPC_ 'error' '"quit"' &> /dev/null ; Exit 0 ;;
@@ -128,8 +159,8 @@ function HandleIpcControl() {
             j) IPC_ 'error' '"seek"' -5 &> /dev/null ;;
             L) IPC_ 'error' '"seek"' 20 &> /dev/null ;;
             J) IPC_ 'error' '"seek"' -20 &> /dev/null ;;
-            +) IPC_ 'error' '"add"' '"volume"' 5 &> /dev/null ;;
-            -) IPC_ 'error' '"add"' '"volume"' -5 &> /dev/null ;;
+            +|0) IPC_ 'error' '"add"' '"volume"' 5 &> /dev/null ;;
+            -|9) IPC_ 'error' '"add"' '"volume"' -5 &> /dev/null ;;
             n|N) IPC_ 'error' '"playlist-next"' &> /dev/null ;;
             p|P) IPC_ 'error' '"playlist-prev"' &> /dev/null ;;
             $'\x20'|k)
@@ -137,7 +168,16 @@ function HandleIpcControl() {
                 IPC_ 'error' '"set_property"' '"pause"' $togglePlay &> /dev/null
                 ;;
             $'') # Enter key
-                LOG info "You pressed Enter"
+                LOG info "Enter"
+                ;;
+            $'\x1b')
+                while IFS= read -rsn1 -t 0.01 key; do
+                    KEY+="$key"
+                done
+                [[ ${KEY} == $'\x1b[A' ]] && IPC_ 'error' '"add"' '"volume"' 5 &> /dev/null
+                [[ ${KEY} == $'\x1b[B' ]] && IPC_ 'error' '"add"' '"volume"' -5 &> /dev/null
+                [[ ${KEY} == $'\x1b[C' ]] && IPC_ 'error' '"seek"' 5 &> /dev/null
+                [[ ${KEY} == $'\x1b[D' ]] && IPC_ 'error' '"seek"' -5 &> /dev/null
                 ;;
         esac
     done
@@ -146,27 +186,31 @@ function HandleIpcControl() {
 function TurnMusicOn() {
     local -a files_joined=("$@")
     local -a quoted_files=()
-    local f=""
+    local file=""
     local track_num=0
 
     mkdir -p "${MPV_SOCKET_DIR}"
+
 
     if [[ $LOOP -eq 1 ]]; then
         LOG info "${BLUE}Tracks${NC}:"
         for (( i=0; i < ${#files_joined[@]}; i++)); do
             track_num=$((i+1))
-            f="${files_joined[$i]}"
-            CURRENTLY_PLAYING+=("$(basename "${MUSIC_DIRECTORY}/${f}")")
+            file="${files_joined[$i]}"
+            quoted_files+=("\"${BLUE}${MUSIC_DIRECTORY}${NC}/${LIGHT_SKIN}${file}${NC}\"")
+            CURRENTLY_PLAYING+=("$(basename "${MUSIC_DIRECTORY}/${file}")")
             LOG info "  ${GREY}$track_num${NC} ${LIGHT_SKIN}${CURRENTLY_PLAYING[$i]%.*}${NC}"
         done
-        for f in "${files_joined[@]}"; do
-            quoted_files+=("\"${LIGHT_SKIN}${MUSIC_DIRECTORY}/${f}${NC}\"")
-        done
+
+        printf "\n"
         LOG command_ "${GREY}COMMAND${NC}: ${BROWN}mpv${NC}" "${mpv_flags[@]}" "${quoted_files[@]}"
         mpv "${mpv_flags[@]}" "${files_joined[@]/#/${MUSIC_DIR}/}" &> "${MPV_SOCKET_DIR}/mpv_log.log" & disown
-        BackgroundStatusLogger &
-        LOGGER_PID=$!
-        HandleIpcControl
+        MPV_PID=$!
+        if [[ $? -eq 0 ]]; then
+            BackgroundStatusLogger &
+            LOGGER_PID=$!
+            HandleIpcControl
+        fi
     else
         for f in "${files_joined[@]}"; do
             CURRENTLY_PLAYING="$(basename "${MUSIC_DIRECTORY}/${f}")"
@@ -179,16 +223,16 @@ function TurnMusicOn() {
 }
 
 function Play() {
-    local MUSIC_FILES=()
+    local -a music_files=()
     for file in "${SELECTED[@]}"; do
         if [[ -f "${MUSIC_DIR}/${file}" ]]; then
-            MUSIC_FILES+=("${file}")
+            music_files+=("${file}")
         else
             LOG error "No such Music file: '${LIGHT_SKIN}${file}${NC}'"
         fi
     done
 
-    TurnMusicOn "${MUSIC_FILES[@]}"
+    TurnMusicOn "${music_files[@]}"
 }
 
 function main() {
@@ -196,6 +240,8 @@ function main() {
     local arg=
     local volume=
     local video=
+
+    CheckDependencies
 
     for (( i=0 ; i < ${#ARG_ARR[@]} ; i++ )); do
         arg="${ARG_ARR[$i]}"

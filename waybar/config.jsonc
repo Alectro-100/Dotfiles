@@ -61,7 +61,7 @@
 
     // Cava on the top
     "custom/cava": {
-        "exec": "${HOME}/.bin/waybar_cava 2",
+        "exec": "${HOME}/.bin/waybar_cava 0",
         "on-click": "pkill -SIGUSR1 -f waybar_cava",
         "return-type": "json",
         "format": "{}"

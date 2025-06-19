@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Load profile with this variable
+
+PROFILE_NAME="A"
+
+# Your profile [A-Z]
+declare -A A
+A=(
+    [DISK_IMG]="/data/VMs/Linux_LFS.raw"
+    [ISO]="/data/VMs/Archlinux_x86_64.iso"
+)
+
+# Usage message
+function Usage() {
+    printf "${HL}Usage${NC}: $(basename "$0") [boot] [A-Z] [-f,--fullscreen]\n"
+    printf "  ${MSG_COL}%-8b${NC} %s\n" \
+        "boot"         "Boot from ISO + disk image" \
+        "[A-Z]"        "Set Profile" \
+        "-f"           "Fullscreen mode"
+}
+
+function load_profile() {
+    local profile_name="$1"
+
+    if ! declare -p "${profile_name}" &> /dev/null; then
+        LOG warn "Profile '${profile_name}' not found. Using default: A"
+        PROFILE_NAME="A"
+    fi
+
+    declare -n source_=${PROFILE_NAME}
+
+    for key in "${!source_[@]}"; do
+        PROFILE["$key"]="${source_[$key]}"
+    done
+    PROFILE[FORMAT]="${source_[DISK_IMG]##*.}"
+    PROFILE[RAM]="$(( $(awk '/MemTotal/ { print $2 }' /proc/meminfo) / 1640 ))"
+}
+
+function LOG() {
+    local type_="$1"
+    shift
+    case "${type_}" in
+        error)
+            printf "[${RED}ERR${NC}]: $@" ;;
+        warn)
+            printf "[${WARN_COL}WARN${NC}]: $@" ;;
+    esac
+}
+
+function print_row() {
+    local label="$1"
+    local value="$2"
+    printf "  %b%-16b%b: %b\n" "$MSG_COL" "$label" "$NC" "$value"
+}
+
+# Boot VM with ISO
+function boot_VM() {
+    local full_scr=$1
+    shift
+    local -a qemu_flags_arr=(
+        "-m" "${PROFILE[RAM]}"
+        "-cpu" "EPYC-v4"
+        "-vga" "qxl"
+        "-display" "gtk,gl=on,show-menubar=off,zoom-to-fit=on"
+        "-boot" "d"
+        "-enable-kvm"
+        "-drive" "file="${PROFILE[DISK_IMG]// /\\}",media=disk,format="${PROFILE[FORMAT]}",if=virtio"
+        "-drive" "file="${PROFILE[ISO]// /\\}",media=cdrom"
+    )
+
+    [[ $full_scr -eq 1 ]] && qemu_flags_arr+=( "-full-screen" )
+
+    printf "${HL}Starting VM (Disk + ISO)${NC}\n"
+    print_row "$@"
+    print_row "Disk file"       "${BLUE}${PROFILE[DISK_IMG]}${NC}"
+    print_row "ISO file"        "${BLUE}${PROFILE[ISO]}${NC}"
+    print_row "Disk format"     "${PROFILE[FORMAT]}"
+    print_row "Allocated RAM"   "$(awk "BEGIN { printf \"%.2f\", ${PROFILE[RAM]} / 1024 }") GB"
+
+    qemu-system-x86_64 "${qemu_flags_arr[@]}"
+}
+
+# Start VM from disk
+function start_VM() {
+    local full_scr=$1
+    shift
+    local -a qemu_flags_arr=(
+        "-m" "${PROFILE[RAM]}"
+        "-cpu" "EPYC-v4"
+        "-vga" "qxl"
+        "-display" "gtk,gl=on,show-menubar=off"
+        "-enable-kvm"
+        "-audiodev" "pa,id=devpa"
+        "-drive" "file=${PROFILE[DISK_IMG]// /\\},media=disk,format=${PROFILE[FORMAT]},if=virtio"
+    )
+
+    [[ $full_scr -eq 1 ]] && qemu_flags_arr+=( "-full-screen" )
+
+    printf "${HL}Starting VM (Disk only)${NC}\n"
+    print_row "$@"
+    print_row "Disk file"       "${BLUE}${PROFILE[DISK_IMG]}${NC}"
+    print_row "Disk format"     "${PROFILE[FORMAT]}"
+    print_row "Allocated RAM"   "$(awk "BEGIN { printf \"%.2f\", ${PROFILE[RAM]} / 1024 }") GB"
+
+    qemu-system-x86_64 "${qemu_flags_arr[@]}"
+}
+
+function main() {
+    # Flags
+    ARG_ARR=("$@")
+
+    [[ ${#ARG_ARR[@]} -eq 0 ]] && {
+        Usage
+        return 0
+    }
+
+    local boot=0
+    local full_scr=0
+    local next_arg=""
+    local new_img="" new_iso=""
+    local requested_profile=""
+
+    # Parse args
+    for (( i=0; i < ${#ARG_ARR[@]}; i++ )); do
+        arg="${ARG_ARR[$i]}"
+        next_arg="${ARG_ARR[$i]}"
+        case "${arg}" in
+            boot|-boot)
+                boot=1
+                ;;
+            img|-img|--img)
+                new_img="${next_arg}"
+                ;;
+            iso|-iso|--iso)
+                new_iso="${next_arg}"
+                ;;
+            -img=*|--img=*|img=*)
+                new_img="${arg#*=}"
+                ;;
+            -iso=*|--iso=*|iso=*)
+                new_iso="${arg#*=}"
+                ;;
+            [A-Za-z])
+                PROFILE_NAME="${arg^}"
+                ;;
+            f|-f|--fullscreen|--full-screen)
+                full_scr=1
+                ;;
+            h|-h|--help)
+                Usage
+                ;;
+            *)
+                Usage
+                ;;
+        esac
+    done
+
+    requested_profile="${PROFILE_NAME}"
+
+    if ! [[ -n "${requested_profile}" && "${requested_profile}" =~ ^[A-Z]$ ]]; then
+        LOG error "Not a valid profile: '${requested_profile}'\n"
+        exit 1
+    fi
+
+    load_profile "${requested_profile}"
+
+    [[ -n "${new_img}" ]] && PROFILE[DISK_IMG]="${new_img}"
+    [[ -n "${new_iso}" ]] && PROFILE[ISO]="${new_iso}"
+
+    # Check paths exist
+    [[ -f "${PROFILE[DISK_IMG]}" ]] || { LOG error "DISK Image '${BLUE}${PROFILE[DISK_IMG]}${NC}' does not exist; Update it\n"; return 1; }
+    [[ -f "${PROFILE[ISO]}" ]] || { LOG error "ISO '${BLUE}${PROFILE[ISO]}${NC}' does not exist; Update it\n"; return 1; }
+
+    # Entry logic
+    if [[ $boot -eq 1 ]]; then
+        boot_VM $full_scr \
+            "Profile" "${PROFILE_NAME}"
+    else
+        start_VM $full_scr \
+            "Profile" "${PROFILE_NAME}"
+    fi
+}
+
+# Colors
+HL="\033[1m"
+NC="\033[0m"
+MSG_COL="\033[38;2;255;240;200m"
+RED="\033[38;2;196;29;31m"
+BLUE="\033[38;2;116;112;218m"
+WARN_COL="\033[38;2;203;82;96m"
+
+declare -A PROFILE=()
+
+main "$@"
+

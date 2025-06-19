@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 
+trap 'Exit 0' SIGINT
+trap 'Exit 1' SIGTERM
+
 test $# -eq 0 && {
     echo "No command or file was given"
     exit 1
+}
+
+Exit() {
+    printf "\n"
+    exit $1
 }
 
 time="0.8"

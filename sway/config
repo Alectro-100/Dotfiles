@@ -16,7 +16,7 @@ font pango: SourceCodePro Large 4
 
     set $OUTPUT $OUTPUT_DP
 
-    workspace $OUTPUT output $OUTPUT
+    # workspace $OUTPUT output $OUTPUT
     output $OUTPUT  background wallpapers/main.wallpaper fill
     output $OUTPUT  mode 1920x1080@144Hz
     output $OUTPUT  scale 1
@@ -361,8 +361,8 @@ font pango: SourceCodePro Large 4
             bindsym $mod+Shift+G exec bash -c \
                 '$(Res="$(slurp)" && notify-send "${Res}")'
 
-        # List of Emojies in rofi-emoji (Shift+Tab+E)
-            bindsym Shift+Tab+E exec bash -c \
+        # List of Emojies in rofi-emoji (backslash+E)
+            bindcode $backslash+$E exec bash -c \
                 '$(rofi -modi emoji -show emoji)'
 
     #* System monitors *#
