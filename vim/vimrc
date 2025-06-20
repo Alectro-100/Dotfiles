@@ -1,6 +1,7 @@
 " Plugin Manager (vim-plug)
-call plug#begin('~/.vim/plugged')
+call plug#begin('/usr/share/vim/VIM')
     Plug 'tpope/vim-commentary'
+    Plug 'neoclide/coc.nvim', {'branch': 'release'}
     Plug 'preservim/nerdtree'
     Plug 'vim-airline/vim-airline'
     Plug 'tomasr/molokai'  " Use molokai color scheme (like in Neovim)

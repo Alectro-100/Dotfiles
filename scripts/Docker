@@ -39,6 +39,7 @@ function StartDocker() {
     if ! systemctl --quiet is-active docker; then
         LOG info "Starting docker services"
         sudo systemctl --quiet start docker
+        LOG info "Services started"
     fi
 }
 
@@ -54,18 +55,19 @@ function ExecIntoContainer() {
     '
 }
 
-function CapitalizeFirst() {
-    echo "$(tr 'a-z' 'A-Z' <<< ${1:0:1})${1:1}"
-}
+# function CapitalizeFirst() {
+    # echo "$(tr 'a-z' 'A-Z' <<< ${1:0:1})${1:1}"
+    # Use ${Var^}
+# }
 
 function CreateContainer() {
-    [[ ${CONTAINER_NAME} == "ollama" ]] && BIND_PORT="11434:11434"
+    [[ "${CONTAINER_NAME}" == "ollama" ]] && BIND_PORT="11434:11434"
 
     docker run --gpus all -dt \
-    -v "${VOLUME_NAME}":${HOME}/.docker_volume \
-    -p $BIND_PORT \
+    -v "${VOLUME_NAME}":"${HOME}/.docker_volume" \
+    -p "$BIND_PORT" \
     --name "${CONTAINER_NAME}" \
-    --hostname "$(CapitalizeFirst ${CONTAINER_NAME})" \
+    --hostname "${CONTAINER_NAME^}" \
     "${IMAGE_NAME}"
 }
 
@@ -74,7 +76,7 @@ function Usage() {
         "${GREEN}Docker - Manage Docker containers with convenience${NC}" \
         "" \
         "Usage:" \
-        "  $(basename "$0") [OPTIONS] CONTAINER_NAME" \
+        "  $(basename "$0") *-[OPTIONS] CONTAINER_NAME" \
         "" \
         "Options:" \
         "  --start               Start Docker services" \
@@ -103,6 +105,11 @@ for (( i=0 ; i < ${#ARGS[@]}; i++ )); do
             ;;
         --start)
             StartDocker || LOG info "Docker services are already stopped"
+            ;;
+        --ls|--list|--avail|--available)
+            IFS=$'\n'
+            printf '%b%-24s%b          %b%s%b\n' "\033[38;2;101;191;213m" "Availale Containers" "\033[0m" "\033[38;2;114;186;36m" "Ports" "\033[0m"
+            printf '%-24s =>       %s\n' $(docker ps --format json --all | jq -r '{Name: .Names}, {Ports: .Ports}' | jq '.[]')
             ;;
         -img=*|--img=*|--image=*)
             IMAGE_NAME="${arg#*=}"
@@ -168,13 +175,13 @@ fi
 
 # Check if container is running
 if docker ps --filter "name=^/${CONTAINER_NAME}$" --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
-        LOG info "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
-        ExecIntoContainer || LOG error "Cannot start container ${BLUE}${CONTAINER_NAME}${NC}"
+    LOG info "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
+    ExecIntoContainer
 else
     # Try to start existing container, else create a new one
     if docker start "$CONTAINER_NAME" &>/dev/null; then
         LOG info "Attaching to container ${BLUE}${CONTAINER_NAME}${NC}"
-        ExecIntoContainer || LOG error "Cannot start container ${BLUE}${CONTAINER_NAME}${NC}"
+        ExecIntoContainer
     else
         LOG info "Creating new container instance of ${BLUE}${CONTAINER_NAME}${NC}"
         CreateContainer || LOG error "Failed to create container from image ${IMAGE_NAME}"

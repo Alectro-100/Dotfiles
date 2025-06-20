@@ -4,7 +4,7 @@
 # @title    MountSSHFS_filesystem
 # @desc     A portable SSHFS mounting utility script with network checks,
 #           timeout auto-unmounting, and remote config editing via terminal.
-# @author   Zyren
+# @author   Me
 # @version  1.0
 # @license  MIT
 # @repo     https://github.com/your-username/dotfiles (or wherever you keep it)
@@ -15,7 +15,7 @@ ENABLE_DEBUG=0    # Override debug config with --debug flag or manual toggle
 
 PROFILE_DIRECTORY='${HOME}/.sshfsProfiles'
 
-### Default Config ###
+### Default Config Template (Do not edit this) ###
 declare -A CONFIG=(
     # Remote SSH username
     [USER]=""
@@ -44,24 +44,22 @@ declare -A CONFIG=(
 )
 
 ### Unified logging logging function
-# Supported log types: info | warm | error | debug
+# Supported log types: info | warn | error | debug
 function LOG() {
     local type_="$1"
     shift
+    local color
     case "$type_" in
-        info)
-            printf "%b\n" "[${GREEN}${type_}${NC}]: $*"
-            ;;
-        warn)
-            printf "%b\n" "[${ORANGE}${type_}${NC}]: $*"
-            ;;
-        error)
-            printf "%b\n" "[${RED}${type_}${NC}]: $*"
-            ;;
+        info)  color="${GREEN}" ;;
+        warn)  color="${ORANGE}" ;;
+        error) color="${RED}" ;;
         debug)
-            [[ ${CONFIG[DEBUG]} -eq 1 || $ENABLE_DEBUG -eq 1 ]] && printf "%b\n" "[${DEBUG_GRAY}${type_}${NC}]: $*"
+            [[ ${CONFIG[DEBUG]} -eq 1 || $ENABLE_DEBUG -eq 1 ]] || return
+            color="${DEBUG_GRAY}"
             ;;
+        *) return ;;  # Unknown type, bail silently
     esac
+    printf "[%b%b%b]: %b\n" "${color}" "${type_}" "${NC}" "$*"
 }
 
 function Usage() {
@@ -80,11 +78,17 @@ function Usage() {
         "" \
         "${BOLD}Options:${NC}" \
         "  ${GREEN}-e${NC}, ${GREEN}--edit${NC}           Edit the SSHFS configuration file" \
-        "  ${GREEN}-s${NC}, ${GREEN}--show${NC}           Show the current configuration" \
-        "  ${GREEN}-p${NC}, ${GREEN}--profile${NC}        Specify the profile" \
-        "  ${GREEN}-c${NC}, ${GREEN}--config${NC}         Specify the path to config file" \
+        "  ${GREEN}-es${NC}, ${GREEN}--edit-source${NC}   Edit this file itself" \
+        "  ${GREEN}-s${NC}, ${GREEN}--show${NC}           Show the currently loaded configuration" \
+        "  ${GREEN}-sp${NC}, ${GREEN}--show-profile${NC}  Show specific profile and load it" \
+        "  ${GREEN}-l${NC}, ${GREEN}--list-profiles${NC}  List the ${PROFILE_DIRECTORY} in tree format" \
+        "  ${GREEN}-p${NC}, ${GREEN}--profile${NC}        Specify the profile name" \
+        "  ${GREEN}-c${NC}, ${GREEN}--config${NC}         Specify the full path to config file" \
+        "  ${GREEN}-cat${NC}, ${GREEN}--cat${NC}          Concatinate the config file" \
         "  ${GREEN}-u${NC}, ${GREEN}--umount${NC}         Unmount the SSHFS mount point" \
+        "  ${GREEN}-m${NC}, ${GREEN}--mount${NC}          Mount the SSHFS mount point" \
         "  ${GREEN}-su${NC}, ${GREEN}--sudo${NC}          Use sudo for mount/unmount operations" \
+        "  ${GREEN}-f${NC}, ${GREEN}--force${NC}          Do not confirm" \
         "  ${GREEN}-d${NC}, ${GREEN}--debug${NC}          Enable debug output" \
         "  ${GREEN}-nc${NC}, ${GREEN}--no-color${NC}      Disable color output" \
         "  ${GREEN}-h${NC}, ${GREEN}--help${NC}           Show this help message and exit" \
@@ -95,13 +99,16 @@ function Usage() {
         "" \
         "${BOLD}Example:${NC}" \
         "  ${YELLOW}$(basename "$0") --edit${NC}" \
-        "  Opens the config file in your editor for modification." \
+        "  Opens the profile in your editor for modification." \
         "" \
         "  ${YELLOW}$(basename "$0") --umount${NC}" \
-        "  Unmounts the currently mounted SSHFS filesystem." \
+        "  Mounts the SSHFS filesystem from profile." \
+        "" \
+        "  ${YELLOW}$(basename "$0") --umount${NC}" \
+        "  Unmounts the mounted SSHFS filesystem from profile." \
         "" \
         "  ${YELLOW}$(basename "$0")${NC}" \
-        "  Mounts the filesystem using the saved configuration." \
+        "  If default profile exists mount from it, otherwise ask user to enter details." \
         ""
 }
 
@@ -130,19 +137,21 @@ function InstallTool() {
 }
 
 function CheckDependencies() {
-    local -a deps=( sshfs ssh )
+    local -a deps=( sshfs ssh fuser tree fusermount findmnt lsof )
     local -a not_found=()
+    local yesno=""
     for cmd in "${deps[@]}"; do
         command -v "$cmd" &> /dev/null || not_found+=("$cmd")
     done
 
     if [[ ${#not_found[@]} -gt 0 ]]; then
         LOG error "${not_found[*]} Not found; Install it first."
-        InstallTool "${not_found[@]}" || FATAL "Exiting..." 1
+        printf "%s: " "Install ${not_found[*]} (y|n)"; read -r yesno
+        [[ $yesno =~ ^(y|Y)$ ]] && InstallTool "${not_found[@]}" || FATAL "Exiting..." 1
     fi
 }
 
-# Auto-detects and sets a tui text editor (nvim > vim > nano) for config editing
+# Auto-detects and sets a TUI text editor (Neovim > Vim > Nano) for config editing
 # Falls back to installing vim if none found
 function SetTextEditor() {
     local -a Editors=( nvim vim micro nano )
@@ -171,7 +180,7 @@ function SetColors() {
     fi
     RED="\033[38;2;255;75;75m"
     GREEN="\033[38;2;138;230;81m"
-    BLUE="\033[38;2;152;60;200m"
+    BLUE="\033[38;2;110;147;235m"
     DEBUG_GRAY="\033[38;2;200;200;200m"
     LITTLE_BLUE="\033[38;2;126;117;255m"
     YELLOW="\033[38;2;226;220;120m"
@@ -182,16 +191,18 @@ function SetColors() {
 }
 
 function TermuxUser() {
-    ### Helping Messages for termux user
+    ### Helping Messages for Termux user
     LOG info "The termux default user home directory '${LITTLE_BLUE}${CONFIG[LOCAL_MOUNT_POINT]}/data/data/com.termux/files/home${NC}'"
     LOG info "Phone's internal stroage filesystem '${LITTLE_BLUE}${CONFIG[LOCAL_MOUNT_POINT]}/storage/emulated/0/${NC}'"
 }
 
 # Displays an ASCII-style script banner
 function DrawBanner() {
-  echo -e "\n${YELLOW}╔═══════════════════════════╗"
-  echo -e "║ SSHFS Mount Utility 🧠⚡ ║"
-  echo -e "╚═══════════════════════════╝${NC}\n"
+  printf "%b\n" "${YELLOW}"
+  printf "%s\n" "=========================="
+  printf "%s\n" "║ SSHFS Mount Utility    ║"
+  printf "%s\n" "=========================="
+  printf "%b\n" "${NC}"
 }
 
 # Nicely formats and prints current loaded config to stdout
@@ -209,7 +220,7 @@ function ShowConfigFile() {
         "${LogVar[@]}" \
         "### SSH Username on the remote device" \
         "USER" "\"${CONFIG[USER]}\"" \
-        "### Ip address or FQDN (FUlly Qualified Domain Name) of the remote" \
+        "### Ip address or FQDN (Fully Qualified Domain Name) of the remote" \
         "HOST" "\"${CONFIG[HOST]}\"" \
         "### Remote path to mount" \
         "REMOTE_MOUNT_POINT" "\"${CONFIG[REMOTE_MOUNT_POINT]}\"" \
@@ -239,25 +250,33 @@ function ShowConfigFile() {
 # Used for persistence across script runs
 function WriteTo() {
     local file_name="$1"
+    local force=$2
+
+    if [[ $force -eq 0 ]]; then
+        printf "'%b' does not exist. Create one (y|n): " "${file_name} "
+        read -r key
+        [[ "${key}" =~ ^(y|Y|yes|Yes)$ ]] || return 1
+    fi
+
 cat > "${file_name}" << EOF
 #!/usr/bin/env bash
 
 ### Configuration File for SSHFS Mounting
 
 ### SSH Username on the remote device
-USER="${CONFIG[USER]}"
+USER="${CONFIG[USER]:-"root"}"
 
 ### Ip address or FQDN (Fully Qualified Domain Name) of the remote
 HOST="${CONFIG[HOST]}"
 
 ### SSH Port to use for connection
-PORT=${CONFIG[PORT]}
+PORT=${CONFIG[PORT]:-22}
 
 ### Remote path to mount
-REMOTE_MOUNT_POINT="${CONFIG[REMOTE_MOUNT_POINT]}"
+REMOTE_MOUNT_POINT="${CONFIG[REMOTE_MOUNT_POINT]:-"/"}"
 
 ### Local directory or mount the remote path to
-LOCAL_MOUNT_POINT="${CONFIG[LOCAL_MOUNT_POINT]}"
+LOCAL_MOUNT_POINT="${CONFIG[LOCAL_MOUNT_POINT]:-"/tmp/sshfsMountDef"}"
 
 ### Private key for SSH authentication
 PRIVATE_KEY="${CONFIG[PRIVATE_KEY]}"
@@ -280,7 +299,7 @@ MOUNT_TIMEOUT=${CONFIG[MOUNT_TIMEOUT]}
 ### Set permission mode (e.g., 755) for the mount directory before mounting
 LOCAL_MOUNT_DIR_PERMS=${CONFIG[LOCAL_MOUNT_DIR_PERMS]}
 
-# vim:filetype=sh
+# vim:filetype=bash
 
 EOF
     LOG info "New Config file created: ${LITTLE_BLUE}${file_name}${NC}"
@@ -290,7 +309,7 @@ function LoadConfigFile() {
     local profile="$1"
     local show_config="$2"
     LOG debug "source ${profile}"
-    source "${profile}"
+    source "${profile}" || FATAL "Exiting..." 1
     local exit_=0
 
     local -a config_vars=(
@@ -307,19 +326,20 @@ function LoadConfigFile() {
         unset "$key"
     done
     [[ -z "${CONFIG[USER]}" ]] && {
-        LOG error "No SSH username given in the config? assuming it's root now."
+        CONFIG[USER]="root"
+        LOG error "No SSH username given in the config. Assuming its root now."
     }
     [[ -z "${CONFIG[HOST]}" ]] && {
-        LOG error "No SSH hostname given in the config?"
+        LOG error "No SSH hostname given in the config."
         exit_=$((exit_ + 1))
     }
     [[ -z "${CONFIG[REMOTE_MOUNT_POINT]}" ]] && {
-        LOG error "No remote mount point given in the config?"
-        exit_=$((exit_ + 1))
+        CONFIG[REMOTE_MOUNT_POINT]="/"
+        LOG error "No remote mount point given in the config. Assuming its ${LITTLE_BLUE}/${NC}"
     }
     [[ -z "${CONFIG[LOCAL_MOUNT_POINT]}" ]] && {
-        LOG error "No local mount point given in the config?"
-        exit_=$((exit_ + 1))
+        CONFIG[LOCAL_MOUNT_POINT]="/tmp/_sshfs_default_mount"
+        LOG error "No local mount point given in the config. Assuming its ${LITTLE_BLUE}/tmp/_sshfs_default_mount${NC}"
     }
 
     ShowConfigFile "$show_config"
@@ -330,11 +350,13 @@ function LoadConfigFile() {
 # Uses defaults when input is empty
 function GetConfig() {
     # Inner function to prompt user, with default & message
+    local guess=0
+
     get_useInput() {
         declare -n ref=$1       # name reference to the variable to fill
         local prompt=$2
         local default=$3
-        local default_msg=$4
+        local default_msg="$4"
 
         printf "%b%s%b" "${LITTLE_BLUE}" "$prompt" "${NC}"
         [[ -n $default ]] && printf " [%s]" "$default"
@@ -342,30 +364,31 @@ function GetConfig() {
 
         read -r input
 
-        if [[ -z $input && -n $default ]]; then
+        if [[ -z "$input" && -n "$default" ]]; then
             ref="$default"
-            [[ -n $default_msg ]] && echo "$default_msg"
+            [[ -n "${default_msg}" ]] && echo -e "${default_msg}"
         else
             ref="$input"
         fi
     }
 
     get_useInput CONFIG[USER] "User" "root" "Assuming you are root."
-    if [[ -z ${CONFIG[USER]} ]]; then
-        echo "User is required, exiting."
-        return 1
-    fi
 
-    get_useInput CONFIG[HOST] "Host (IP or FQDN)"
+    get_useInput CONFIG[HOST] "Host (IP or FQDN)" "" ""
     if [[ -z ${CONFIG[HOST]} ]]; then
         echo "Host is required, exiting."
         return 1
     fi
 
-    get_useInput CONFIG[PORT] "Port" "22" "Assuming port 22."
-    get_useInput CONFIG[REMOTE_MOUNT_POINT] "Remote mount point" "/" ""
-    get_useInput CONFIG[LOCAL_MOUNT_POINT] "Local mount point" "/tmp/_sshfs_default_mount" ""
-    get_useInput CONFIG[MOUNT_TIMEOUT] "Mount timeout (seconds)" "0" ""
+    [[ "${CONFIG[USER]}" == u0_a* ]] && guess=8022 || guess=22
+    get_useInput CONFIG[PORT] "Port" "${guess}" "Assuming port ${guess}"
+    if [[ -z ${CONFIG[PORT]} ]]; then
+        echo "Port is required, exiting."
+        return 1
+    fi
+    get_useInput CONFIG[REMOTE_MOUNT_POINT] "Remote mount point" "/" "Default ${BLUE}/${NC}"
+    get_useInput CONFIG[LOCAL_MOUNT_POINT] "Local mount point" "/tmp/_sshfs_default_mount" "default '${BLUE}/tmp/_sshfs_default_mount${NC}'"
+    get_useInput CONFIG[MOUNT_TIMEOUT] "Mount timeout (seconds)" "0" "Default 0"
     get_useInput CONFIG[SSH_OPTIONS] "SSH options" "" ""
     get_useInput CONFIG[PRIVATE_KEY] "Private key" "" ""
 
@@ -378,12 +401,14 @@ function GetConfig() {
 function EditConfig() {
     SetTextEditor # Set the terminal text editor
     local profile="$1"
+    local profile_="$( sed "s|/home/$(getent passwd | grep $UID | cut -d':' -f1)/|${LITTLE_BLUE//\\/\\\\}\${HOME}${NC//\\/\\\\}/|g" <(printf "%s\n" "${profile}") )"
+    local force_profile_creation="$2"
     if [[ ! -s "${profile}" ]]; then
-        WriteTo "${profile}"
+        WriteTo "${profile}" "$force_profile_creation"
     fi
 
     if [[ -n "${profile}" ]]; then
-        LOG debug "Editing ${profile}"
+        LOG info "Editing ${profile_}"
         ${EDITOR:-"vim"} "${profile}"
     else
         LOG error "${ORANGE}profile${NC} not given"
@@ -391,32 +416,48 @@ function EditConfig() {
     fi
 }
 
+# Checks mount point, if exists mount exists attempt to unmount
 function AttemptUnMount() {
     local -r mount="$1"
-    # If it's not a mount point
-    if ! mountpoint -q "${mount}"; then
-        return 1
-    else
+
+    removeDir() {
+        if rmdir "${mount}" &> /dev/null; then
+            LOG info "Cleaned: ${BLUE}${mount}${NC}"
+        else
+            LOG warn "Failed to clean: ${BLUE}${mount}${NC}. It has some leftovers"
+        fi
+    }
+
+    # If it's a mount point
+    if mountpoint -q "${mount}"; then
         LOG debug "Attempting to unmount: ${mount}"
+    else
+        LOG debug "Not a mount point: ${mount}"
+        unset -f removeDir
+        return 0
     fi
 
     LOG debug "Using lazy unmount"
     # Clean lazy unmount
     if timeout 2 fusermount -uz "${mount}" &> /dev/null; then
-        LOG info "Successfully lazy unmount via fusermount: ${mount}"
-        rm -rf "$mount"
+        LOG info "Successfully lazy unmount via fusermount: ${BLUE}${mount}${NC}"
+        removeDir
+        unset -f removeDir
         return 0
     else
         LOG error "Mount failed"
+        LOG debug "Attempting lazy umount"
         sudo umount -l "${mount}" &> /dev/null || {
             LOG warn "Mount still stuck, likely a zombie"
-            LOG info "Killing sshfs"
-            pkill -f sshfs && return 0
+            unset -f removeDir
+            return 1
         }
-        return 1
+        removeDir
+        unset -f removeDir
+        return 0
     fi
 
-    LOG warn "fusermount -uz ${mount} failed. Trying fallback methods"
+    LOG warn "fusermount -uz '${BLUE}${mount}${NC}' failed. Trying fallback methods"
 
     # Check if anything holding the mount point
     if command -v "lsof" &> /dev/null; then
@@ -425,33 +466,38 @@ function AttemptUnMount() {
     elif command -v "fuser" &> /dev/null; then
         LOG info "Open files:"
         fuser -vm "${mount}"
-    else
-        LOG warn "No lsof or fuser available to check open files"
-        return 1
     fi
-    # kill sshfs tied to this mount
-    if timeout 2 pkill sshfs; then
-        LOG info "Killed sshfs process holding $mount"
+
+    # SSHFS tied to this mount
+    if timeout 2 findmnt -n -T "${mount}" | grep -q "${mount}"; then
+        LOG warn "${BLUE}${mount}${NC} is still mounted"
     fi
-    # After killing sshfs try lazy unmount again
+    # Try lazy unmount again
     if timeout 2 fusermount -uz "${mount}" &> /dev/null; then
-        LOG info "Successfully unmount '${mount}' after killing sshfs"
-        rm -rf "$mount"
+        LOG info "Successfully unmount: ${BLUE}${mount}${NC}"
+        removeDir
+        unset -f removeDir
         return 0
     fi
     # Final check in /proc/mounts
-    if grep -q "$mount" /proc/mounts; then
+    if grep -q "${mount}" /proc/mounts; then
         LOG warn "Mount still listed in /proc/mounts — might be a zombie or stale mount"
         LOG info "Final attempt with lazy unmount"
-        sudo umount -l "$mount" &>/dev/null && return 0
+        if sudo umount -l "${mount}" &>/dev/null; then
+            removeDir
+            unset -f removeDir
+            return 0
+        else
+            unset -f removeDir
+            return 1
+        fi
     fi
-    exit 0
 }
 
 function AttemptMount() {
     local -a cmd=("$@")
     for i in {1..3}; do
-        LOG info "attemting mount $i"
+        [[ $i -ge 2 ]] && LOG info "attemting mount $i"
         LOG debug "Running: sshfs ${cmd[*]}"
         sshfs "${cmd[@]}" && return 0
         sleep $((i*2))
@@ -469,6 +515,10 @@ function HostReachable() {
 
 function CheckMountPoint() {
     local mountPoint="$1"
+    if [[ -z "${mountPoint}" ]]; then
+        LOG warn "mount point variable is empty"
+        return 1
+    fi
     if command -v findmnt &> /dev/null; then
         [[ $(findmnt -n -T "${mountPoint}" -o FSTYPE) == fuse* ]] && return 0 || return 1
     else
@@ -491,217 +541,23 @@ function CreateLocalMount() {
     }
 }
 
-### Parses script arguments like --edit, --show, --sudo, --unmount, etc.
-# Sets flags for conditional execution later
-function main() {
-    CheckDependencies
+function MountSSHFS_() {
+    local -a sshfs_cmd=("$@")
 
-    local -a ARGS_ARR=("$@")
-    # Array holding commandline flags and arguments for SSHFS
-    local -a sshfs_cmd+=()
-    # Will hold "sudo" if needed
-    local -a sudo=()
-
-    local mount=0 unmount=0
-    local ssh_only_=0
-    local ls_config_dir=0
-    local edit_config=0
-    local show_config=0
-    local colors=1
-    local force=0
-    local cat_config=0
-    local profile_showed=0
-    local config_profile="/tmp/.sshfsMountScriptConf"
-    local requested_profile=""
-    local profile_dir="$(eval echo ${PROFILE_DIRECTORY})"
-
-    # Path to temporary config file used between sessions
-    for (( i=0 ; i < ${#ARGS_ARR[@]}; i++ )); do
-        arg="${ARGS_ARR[$i]}"
-        next_arg="${ARGS_ARR[$((i+1))]}"
-        case "$arg" in
-            -e|--edit|edit)
-                edit_config=1
-                LOG debug "edit_config=1"
-                ;;
-            -d|--debug)
-                CONFIG[DEBUG]=1
-                ENABLE_DEBUG=1
-                LOG debug "set CONFIG[DEBUG]=1"
-                LOG debug "Debug enabled = True"
-                ;;
-            -p|--prof|--profile)
-                requested_profile="${next_arg}"
-                LOG debug "Your selected profile: $requested_profile"
-                ;;
-            -p=*|--prof=*|--profile=*)
-                requested_profile="${arg#*=}"
-                LOG debug "Your selected profile: $requested_profile"
-                ;;
-            -c|--conf|--config)
-                config_profile="${next_arg}"
-                LOG debug "Your config: $config_profile"
-                ;;
-            -c=*|--conf=*|--config=*)
-                config_profile="${arg#*=}"
-                LOG debug "Your config: $config_profile"
-                ;;
-            -s|--show)
-                LOG debug "show config = yes"
-                show_config=1
-                ;;
-            --cat)
-                LOG debug "cat config = yes"
-                cat_config=1
-                ;;
-            ls|--ls|-t|--tree)
-                LOG debug "ls config dir = yes"
-                ls_config_dir=1
-                ;;
-            -f|--force)
-                LOG debug "Force = on"
-                force=1
-                ;;
-            -ssh|--ssh|--ssh-only)
-                ssh_only_=1
-                ;;
-            -su|--sudo)
-                LOG debug "Use sudo"
-                sudo=("sudo" ' ')
-                ;;
-            -nc|--no-color|--nocolor)
-                CONFIG[COLORS]=0
-                colors=0
-                LOG debug "CONFIG[COLORS]=0"
-                LOG debug "colors=1"
-                ;;
-            -m|--mount)
-                mount=1
-                LOG debug "mount=1"
-                ;;
-            -u|--umount|--unmount)
-                unmount=1
-                LOG debug "unmount=1"
-                ;;
-            -h|--help)
-                Usage
-                exit 0
-                ;;
-            *)
-                LOG error "Invalid argument $arg"
-                FATAL "Exiting..." 1
-                ;;
-        esac
-    done
-
-
-    LOG debug "Call SetColors"
-    SetColors $colors
-
-    if [[ -n "${requested_profile}" ]]; then
-        mkdir -p "${profile_dir}"
-        requested_profile="${profile_dir}/${requested_profile}"
-        if [[ -s "${requested_profile}" ]]; then
-            config_profile="${requested_profile}"
-            [[ $ls_config_dir -eq 1 ]] && {
-                tree -C "${profile_dir}"
-            }
-        else
-            if [[ $force -eq 0 ]]; then
-                printf "'%s' does not exist. Create one (y|n): " "${requested_profile} "
-                read -r key
-                [[ "${key}" =~ ^(y|Y|yes|Yes)$ ]] || return 1
-            fi
-            LOG debug "Call WriteTo()"
-            WriteTo "${requested_profile}"
-            config_profile="${requested_profile}"
-        fi
-    fi
-
-    # If a previously written config file exists, source it
-    # Else, prompt user to provide config interactively and save the config
-    if [[ ! -s "${config_profile}" && $# -eq 0 ]]; then
-        LOG debug "Config doesn't exist; ask user to enter details"
-        # Get config values
-        LOG debug "Call GetConfig()"
-        GetConfig || FATAL "Exiting..." 1
-        # After getting values, write to config
-        LOG debug "Call WriteTo()"
-        WriteTo "${config_profile}"
-    fi
-
-    if [[ $edit_config -eq 1 ]]; then
-        EditConfig "${config_profile}"
+    if CheckMountPoint "${CONFIG[LOCAL_MOUNT_POINT]}"; then
+        LOG info "${BLUE}${CONFIG[LOCAL_MOUNT_POINT]}${NC} is already mounted"
         return 0
     fi
-
-    if [[ -s "${config_profile}" ]]; then
-        LOG debug "Call LoadConfigFile"
-        LoadConfigFile "${config_profile}" "$show_config"
-        [[ "$show_config" -eq 1 ]] && show_config=0
-        if [[ "$cat_config" -eq 1 ]]; then
-            echo && LOG info "Concatinating: $config_profile" && echo
-            if command -v bat &> /dev/null; then
-                bat --paging=never --color=always --decorations=never --language=bash "${config_profile}"
-                return 0
-            else
-                cat "${config_profile}"
-                return 0
-            fi
-        fi
-        LOG debug "Call SetColors()"
-        SetColors $colors
-    else
-        LOG error "No Config profile found"
-        return 1
-    fi
-
-    # Handles forced unmounting if directory exists or --unmount is used
-    if  [[ $unmount -eq 1 ]] || CheckMountPoint "${CONFIG[LOCAL_MOUNT_POINT]}" ; then
-        if ! AttemptUnMount "${CONFIG[LOCAL_MOUNT_POINT]}"; then
-            LOG warn "Unmount failed on '${BLUE}${CONFIG[LOCAL_MOUNT_POINT]}${NC}'"
-            FATAL "Exiting..." 1
-        fi
-    fi
-
-    ### Before mounting check if remote is alive and listening
-    HostReachable || FATAL "Exiting..." 1
-
-
-    ### Create local mount point
+    # Create local mount point
     LOG debug "If destination dir '${CONFIG[LOCAL_MOUNT_POINT]}' does not exist create it"
     if [[ ! -d "${CONFIG[LOCAL_MOUNT_POINT]}" ]]; then
         CreateLocalMount "${CONFIG[LOCAL_MOUNT_POINT]}" ${CONFIG[LOCAL_MOUNT_DIR_PERMS]} "${sudo[@]}"
     fi
 
-    [[ -n ${CONFIG[PRIVATE_KEY]} ]] && [[ -r "${CONFIG[PRIVATE_KEY]}" ]] && {
-        sshfs_cmd+=("-o" "IdentitiesOnly=yes" "-o" "IdentityFile=${CONFIG[PRIVATE_KEY]}")
-    }
-    [[ -n "${CONFIG[SSH_OPTIONS]}" ]] && sshfs_cmd+=("-o" "${CONFIG[SSH_OPTIONS]}")
-
-    [[ -n ${CONFIG[PORT]} ]] && sshfs_cmd+=("-o" "ssh_command=ssh -p ${CONFIG[PORT]}")
-    sshfs_cmd+=("${CONFIG[USER]:-"root"}@${CONFIG[HOST]}:${CONFIG[REMOTE_MOUNT_POINT]:-"/"}")
-    sshfs_cmd+=("${CONFIG[LOCAL_MOUNT_POINT]:-"/tmp/DEFAULT_MOUNT"}")
-    [[ -z ${CONFIG[PORT]} && "${CONFIG[USER]}" == u0_a* ]] && CONFIG[PORT]=8022
-
-    if [[ $ssh_only_ -eq 1 ]]; then
-        LOG info "SSH from Profile: ${config_profile}"
-
-        LOG debug "Call DrawBanner()"
-        DrawBanner
-        ssh -p "${CONFIG[PORT]:-22}" "${CONFIG[USER]-"root"}@${CONFIG[HOST]}"
-    fi
-
-    [[ $mount -eq 0 ]] && return 0
-
-    LOG info "Mounting from Profile: ${config_profile}"
-    LOG debug "Call DrawBanner()"
-    DrawBanner
-
-    ### Mount the remote or local device filesystem as a fuse.sshfs device using openssh protocal
+    # Mount the remote or local device file system as a fuse.sshfs device using OpenSSH protocol
     if AttemptMount "${sshfs_cmd[@]}"; then
-        LOG info "Mounted $(mount | grep "${CONFIG[LOCAL_MOUNT_POINT]}")" | grep --color=always -E "${CONFIG[USER]}|${CONFIG[HOST]}"
-        [[ ${CONFIG[MOUNT_TIMEOUT]} -ne 0 ]] && {
+        echo && LOG info "Mounted $(mount | grep "${CONFIG[LOCAL_MOUNT_POINT]}")" | grep --color=always -E "${CONFIG[USER]}|${CONFIG[HOST]}"
+        [[ ${CONFIG[MOUNT_TIMEOUT]} -gt 0 ]] && {
             LOG debug "(sleep ${CONFIG[MOUNT_TIMEOUT]} && ${sudo[*]} timeout --signal KILL 4 fusermount -u ${CONFIG[LOCAL_MOUNT_POINT]}) &"
             (sleep ${CONFIG[MOUNT_TIMEOUT]} && "${sudo[@]}" timeout --signal KILL 4 fusermount -u "${CONFIG[LOCAL_MOUNT_POINT]}") &
         }
@@ -713,15 +569,286 @@ function main() {
      ${LITTLE_BLUE}${CONFIG[LOCAL_MOUNT_POINT]}${NC} on Port ${CONFIG[PORT]}"
 
         LOG debug "Call AttemptUnMount()"
+        if AttemptUnMount "${CONFIG[LOCAL_MOUNT_POINT]}"; then
+            LOG info "Unmounted: ${BLUE}${CONFIG[LOCAL_MOUNT_POINT]}${NC}"
+        else
+            LOG warn "Failed to Unmount ${BLUE}${CONFIG[LOCAL_MOUNT_POINT]}${NC}"
+            FATAL "Exiting..." 1
+        fi
+    fi
+}
+
+### Parses script arguments like --edit, --show, --sudo, --unmount, etc.
+# Sets flags for conditional execution later
+function main() {
+    CheckDependencies
+
+    local -a ARGS_ARR=("$@")
+    local -a sshfs_cmd=()
+    local -a sudo=()
+
+    # Flags
+    local mount=0 unmount=0 ssh_only_=0
+    local ls_config_dir=0 edit_config=0 show_config=0 cat_config=0
+    local colors=1 force=0
+    local profile_showed=0
+
+    # This is default profile if --profile is not passed
+    local config_profile="/tmp/.sshfsMountScriptConf"
+    local profile_dir=""
+    local requested_profile=""
+    local show_profile=""
+    profile_dir="$(realpath $(eval echo "${PROFILE_DIRECTORY}"))"
+
+    # Helper function for debug logging
+    log_debug() {
+        local msg="$1"
+        [[ $ENABLE_DEBUG -eq 1 ]] && LOG debug "$msg"
+    }
+
+    for (( i = 0; i < ${#ARGS_ARR[@]}; i++ )); do
+        arg="${ARGS_ARR[$i]}"
+        next_arg="${ARGS_ARR[$((i+1))]}"
+
+        case "$arg" in
+            -e|e|--e|--edit|-edit|edit)
+                edit_config=1
+                log_debug "edit_config=1"
+                ;;
+
+            -d|--d|--debug|-debug|debug)
+                CONFIG[DEBUG]=1
+                ENABLE_DEBUG=1
+                log_debug "Debug mode enabled"
+                ;;
+
+            -p|p|--p|--prof|prof|--profile|-profile|profile)
+                requested_profile="$next_arg"
+                ((i++))
+                log_debug "Selected profile: $requested_profile"
+                ;;
+
+            -p=*|p=*|--p=*|--prof=*|prof=*|-prof=*|--profile=*|-profile=*|profile=*)
+                requested_profile="${arg#*=}"
+                log_debug "Selected profile: $requested_profile"
+                ;;
+
+            -c|--c|--conf|--config|-config)
+                config_profile="$next_arg"
+                ((i++))
+                log_debug "Custom config: $config_profile"
+                ;;
+
+            -c=*|--c=*|--conf=*|-conf=*|--config=*|-config=*)
+                config_profile="${arg#*=}"
+                log_debug "Custom config: $config_profile"
+                ;;
+
+            -s|s|--show|-show|show)
+                show_config=1
+                log_debug "show_config=1"
+                ;;
+
+            -cat|--cat|cat)
+                cat_config=1
+                log_debug "cat_config=1"
+                ;;
+
+            -l|l|--l|-lp|--lp|-list|--list|--list-profiles|-list-profiles)
+                ls_config_dir=1
+                log_debug "ls_config_dir=1"
+                ;;
+
+            -sp|sp|--sp|--show-profile|-show-profile|show-profile)
+                show_profile="${next_arg}"
+                log_debug "show specific profile: ${show_profile}"
+                ;;
+
+            -sp=*|sp=*|--sp=*|--show-profile=*|show-profile=*|-show-profile=*|show-profile=*)
+                show_profile="${arg#*=}"
+                log_debug "show specific profile: ${show_profile}"
+                ;;
+
+            -f|--f|-force|--force|force)
+                force=1
+                log_debug "force=1"
+                ;;
+
+            -ssh|--ssh|ssh)
+                ssh_only_=1
+                ;;
+
+            -su|su|--sudo|sudo)
+                sudo=("sudo" " ")
+                log_debug "sudo enabled"
+                ;;
+
+            -nc|--no-color|--nocolor)
+                CONFIG[COLORS]=0
+                colors=0
+                log_debug "colors=0"
+                ;;
+
+            -m|m|--m|--mount|-mount|mount)
+                mount=1
+                log_debug "mount=1"
+                ;;
+
+            -u|u|--u|--umount|unmount)
+                unmount=1
+                log_debug "unmount=1"
+                ;;
+
+            -es|es|--es|--edit-me|-edit-me|--edit-source|edit-source)
+                ${EDITOR} "$(realpath $0)"
+                return 0
+                ;;
+
+            -h|h|-help|--help|help)
+                Usage
+                exit 0
+                ;;
+
+            *)
+                LOG error "Invalid argument: $arg"
+                FATAL "Exiting..." 1
+                ;;
+        esac
+    done
+
+    LOG debug "Call SetColors"
+    SetColors $colors
+
+    mkdir -p "${profile_dir}"
+    if [[ $ls_config_dir -eq 1 ]]; then
+        echo && LOG info "Available Profiles:\n"
+        tree -C "${profile_dir}"
+        return 0
+    fi
+
+    if [[ -f "${profile_dir}/${show_profile}" ]]; then
+        show_profile="${profile_dir}/${show_profile}"
+        config_profile="${show_profile}"
+        LoadConfigFile "${config_profile}" "1"
+    fi
+
+    if [[ -n "${requested_profile}" ]]; then
+        requested_profile="${profile_dir}/${requested_profile}"
+        if [[ -s "${requested_profile}" ]]; then
+            config_profile="${requested_profile}"
+        else
+            LOG debug "Call WriteTo()"
+            WriteTo "${requested_profile}" "$force"
+            config_profile="${requested_profile}"
+        fi
+    fi
+
+    # Edit the config and exit
+    if [[ $edit_config -eq 1 ]]; then
+        EditConfig "${config_profile}" "$force"
+        return 0
+    fi
+
+    # If a previously written config file exists, source it
+    # Else, prompt user to provide config interactively and save the config
+    if [[ ! -s "${config_profile}" || $# -eq 0 ]]; then
+        LOG debug "Config doesn't exist; ask user to enter details"
+        # Get config values
+        LOG debug "Call GetConfig()"
+        GetConfig || FATAL "Exiting..." 1
+        # After getting values, write to config
+        LOG debug "Call WriteTo()"
+        WriteTo "${config_profile}" "$force"
+    fi
+
+    # Load the profile
+    LOG debug "Call LoadConfigFile"
+    LoadConfigFile "${config_profile}" "$show_config"
+    [[ "$show_config" -eq 1 ]] && show_config=0
+    if [[ "$cat_config" -eq 1 ]]; then
+        echo && LOG info "Concatinating: $config_profile" && echo
+        if command -v bat &> /dev/null; then
+            bat --paging=never --color=always --decorations=never --language=bash "${config_profile}"
+            return 0
+        else
+            cat "${config_profile}"
+            return 0
+        fi
+    fi
+    LOG debug "Call SetColors()"
+    SetColors $colors
+
+    # Handles forced unmounting if its already mounted or --unmount is used
+    if  [[ $unmount -eq 1 ]] || CheckMountPoint "${CONFIG[LOCAL_MOUNT_POINT]}" ; then
         if ! AttemptUnMount "${CONFIG[LOCAL_MOUNT_POINT]}"; then
-            LOG warn "Unmount failed on '${BLUE}${CONFIG[LOCAL_MOUNT_POINT]}${NC}'"
+            LOG warn "Failed to Unmount ${BLUE}${CONFIG[LOCAL_MOUNT_POINT]}${NC}"
             FATAL "Exiting..." 1
         fi
     fi
 
-    ### Log the final messages
-    LOG debug "Call ShowConfigFile()"
-    ShowConfigFile $show_config
+    # Fill sshfs_cmd array with sshfs flags and parameters
+    [[ -n ${CONFIG[PRIVATE_KEY]} ]] && [[ -r "${CONFIG[PRIVATE_KEY]}" ]] && {
+        sshfs_cmd+=("-o" "IdentitiesOnly=yes" "-o" "IdentityFile=${CONFIG[PRIVATE_KEY]}")
+    }
+    [[ -n "${CONFIG[SSH_OPTIONS]}" ]] && sshfs_cmd+=("-o" "${CONFIG[SSH_OPTIONS]}")
+    [[ -z ${CONFIG[PORT]} && "${CONFIG[USER]}" == u0_a* ]] && CONFIG[PORT]=8022
+    [[ -z ${CONFIG[PORT]} ]] && CONFIG[PORT]=22
+    [[ -n ${CONFIG[PORT]} ]] && sshfs_cmd+=("-o" "ssh_command=ssh -p ${CONFIG[PORT]}")
+    sshfs_cmd+=("${CONFIG[USER]:="root"}@${CONFIG[HOST]}:${CONFIG[REMOTE_MOUNT_POINT]:="/"}")
+    sshfs_cmd+=("${CONFIG[LOCAL_MOUNT_POINT]:="/tmp/DEFAULT_MOUNT"}")
+
+    config_profile="$( sed "s|/home/$(getent passwd | grep $UID | cut -d':' -f1)/|${LITTLE_BLUE//\\/\\\\}\${HOME}${NC//\\/\\\\}/|g" <(printf "%s\n" "${config_profile}") )"
+
+
+    if [[ $ssh_only_ -eq 1 && $mount -eq 1 ]]; then
+
+        # Before mounting or SSH, check if remote is alive and listening
+        HostReachable || FATAL "Exiting..." 1
+
+        LOG debug "Call DrawBanner()"
+        DrawBanner
+
+        LOG info "Mount and SSH into remote"
+        echo && LOG info "Mounting remote: '${CONFIG[HOST]}' from profile ${config_profile}"
+        MountSSHFS_ "${sshfs_cmd[@]}"
+        ### Log the final messages
+
+        echo && LOG info "SSH into '${CONFIG[HOST]}' from profile ${config_profile}" && echo
+        ssh -p "${CONFIG[PORT]}" "${CONFIG[USER]-"root"}@${CONFIG[HOST]}"
+
+        LOG debug "Call ShowConfigFile()"
+        ShowConfigFile $show_config
+        return 0
+    fi
+
+    if [[ $ssh_only_ -eq 1 ]]; then
+        # Before SSH, check if remote is alive and listening
+        HostReachable || FATAL "Exiting..." 1
+
+        echo && LOG info "SSH into '${CONFIG[HOST]}' from profile ${config_profile}" && echo
+        LOG debug "Call DrawBanner()"
+        DrawBanner
+        ssh -p "${CONFIG[PORT]}" "${CONFIG[USER]-"root"}@${CONFIG[HOST]}"
+        LOG debug "Call ShowConfigFile()"
+        ShowConfigFile $show_config
+        return 0
+    fi
+
+    ## Execute this block on --mount -m
+    if [[ $mount -eq 1 ]]; then
+        # Before mounting, check if remote is alive and listening
+        HostReachable || FATAL "Exiting..." 1
+
+        LOG debug "Call DrawBanner()"
+        DrawBanner
+
+        echo && LOG info "Mounting remote: '${CONFIG[HOST]}' from profile ${config_profile}"
+        MountSSHFS_ "${sshfs_cmd[@]}"
+        ### Log the final messages
+        LOG debug "Call ShowConfigFile()"
+        ShowConfigFile $show_config
+        return 0
+    fi
 }
 
 main "$@"

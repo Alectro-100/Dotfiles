@@ -161,8 +161,8 @@ function HandleIpcControl() {
             J) IPC_ 'error' '"seek"' -20 &> /dev/null ;;
             +|0) IPC_ 'error' '"add"' '"volume"' 5 &> /dev/null ;;
             -|9) IPC_ 'error' '"add"' '"volume"' -5 &> /dev/null ;;
-            n|N) IPC_ 'error' '"playlist-next"' &> /dev/null ;;
-            p|P) IPC_ 'error' '"playlist-prev"' &> /dev/null ;;
+            n|N|'>') IPC_ 'error' '"playlist-next"' &> /dev/null ;;
+            p|P|'<') IPC_ 'error' '"playlist-prev"' &> /dev/null ;;
             $'\x20'|k)
                 [[ $togglePlay == false ]] && togglePlay=true || togglePlay=false
                 IPC_ 'error' '"set_property"' '"pause"' $togglePlay &> /dev/null

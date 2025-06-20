@@ -85,6 +85,7 @@ alias Vireon="cd ${HOME}/DEV/VIreon && ssh-add ${HOME}/.ssh/id_ed25519_rustlog"
 alias radeontop="radeontop --color"
 alias exiftool="/usr/bin/vendor_perl/exiftool"
 alias metadata="/usr/bin/vendor_perl/exiftool"
+alias lsblk="lsblk --paths -o+SIZE --fs"
 
 ### Flatpak Applications
 alias fp-scrivano="flatpak run com.github.scrivanolabs.scrivano"
@@ -617,7 +618,7 @@ function sway_vulkan() {
 
 function SetPath() {
     PATH+=: PATH+="/usr/local/bin:/usr/local/sbin:/usr/sbin:/sbin:/bin"
-    PATH+=: PATH+="${HOME}/.bin"
+    PATH+=: PATH+="${HOME}/.bin:${HOME}/.local/bin:"
     PATH+=: PATH+="${HOME}/.cargo/bin:${HOME}/.npm-global/bin:${BREW}/bin"
 
     local tmp_path="/tmp/.home.path"
@@ -663,21 +664,55 @@ function RandomColors() {
     pastel random | pastel format "${format:-"hex"}"
 }
 
-### ScreenShots by grim
-function sc() {
-    local -r SC="${HOME}/Grim_Screenshots"
-    if [[ -d "${SC}" ]]; then
-        cd "${SC}"
-        if command -v imv 1> /dev/null 2>&1 ; then
-            imv * &> /dev/null &
-            disown
-        else
-            feh * &> /dev/null &
-            disown
-        fi
+function grammer_check() {
+    emulate -LR bash
+    local arg="$1"
+    local raw_text
+
+    if [[ -f "${arg}" ]]; then
+        raw_text=$(<"$file")
     else
-        exit 1
+        raw_text="$*"
     fi
+    # Read and sanitize input
+
+    # Remove control characters (except \n and \t)
+    local clean_text
+    clean_text=$(printf '%s' "$raw_text" | tr -d '\000-\011\013\014\016-\037')
+
+    # Send to LanguageTool
+    local json
+    json=$(curl -s -X POST "https://api.languagetool.org/v2/check" \
+        --data-urlencode "language=en-US" \
+        --data-urlencode "text=$clean_text")
+
+    # Check for valid JSON
+    if ! echo "$json" | jq . >/dev/null 2>&1; then
+        echo "❌ jq failed to parse the response. Possibly invalid input or corrupted JSON."
+        return 1
+    fi
+
+    local red=$(tput setaf 1)
+    local green=$(tput setaf 2)
+    local yellow=$(tput setaf 3)
+    local reset=$(tput sgr0)
+
+    echo "$json" | jq -r --arg red "$red" --arg green "$green" --arg yellow "$yellow" --arg reset "$reset" '
+        if (.matches | length) == 0 then
+            "\($green)No issues found ✅\($reset)"
+        else
+            .matches[] |
+            "\($red)Error:\($reset) \(.message)\n" +
+            "\($yellow)Context:\($reset) \"\(.context.text)\"\n" +
+            "\($green)Suggestion(s):\($reset) " +
+            (if (.replacements | length) > 0 then
+                (.replacements | map(.value) | join(", "))
+             else
+                "None"
+             end) + "\n" +
+            "Offset: \(.offset)\n---"
+        end
+    '
 }
 
 ### Terminal file explorer

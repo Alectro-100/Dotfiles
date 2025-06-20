@@ -188,7 +188,7 @@ function Install_misc_tools() {
       syslog-ng glances krusader nwg-drawer speedtest-cli kube-apiserver kubectl \
        syncplay ncurses carla qtractor rust rust-src ardour qt6-tools obsidian \
         nvidia-container-toolkit weechat irssi blender okular krita vim git \
-         docker gimp wofi code python-openai-whisper perl-image-exiftool xev
+         docker gimp wofi code python-openai-whisper perl-image-exiftool xev bindfs
 
     AUR_Install "${MSG} via aur" lagrange-bin vtop rsyslog \
         piper-tts-bin delta

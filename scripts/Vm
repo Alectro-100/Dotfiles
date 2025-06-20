@@ -9,9 +9,18 @@ PROFILE_NAME="A"
 # Your profile [A-Z]
 declare -A A
 A=(
-    [DISK_IMG]="/data/VMs/Linux_LFS.raw"
-    [ISO]="/data/VMs/Archlinux_x86_64.iso"
+    [DISK_IMG]="/Data/VMs/Linux_LFS.raw"
+    [ISO]="/Data/VMs/Archlinux_x86_64.iso"
 )
+
+function LOG() {
+    local type_="$1"
+    shift
+    case "${type_}" in
+        error) printf "[%b%s%b]: %b\n" "${RED}"      "ERR"  "${NC}" "$*" ;;
+        warn) printf "[%b%s%b]: %b\n" "${WARN_COL}" "WARN" "${NC}" "$*" ;;
+    esac
+}
 
 # Usage message
 function Usage() {
@@ -37,17 +46,6 @@ function load_profile() {
     done
     PROFILE[FORMAT]="${source_[DISK_IMG]##*.}"
     PROFILE[RAM]="$(( $(awk '/MemTotal/ { print $2 }' /proc/meminfo) / 1640 ))"
-}
-
-function LOG() {
-    local type_="$1"
-    shift
-    case "${type_}" in
-        error)
-            printf "[${RED}ERR${NC}]: $@" ;;
-        warn)
-            printf "[${WARN_COL}WARN${NC}]: $@" ;;
-    esac
 }
 
 function print_row() {
