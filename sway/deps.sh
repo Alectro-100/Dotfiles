@@ -43,7 +43,7 @@ function Install() {
     local packages=("$@")
     LOG info "${msg}"
     if [[ $INSTALL -eq 1 ]]; then
-        if ${SUDO[@]}pacman -S ${packages[@]} --noconfirm --needed; then
+        if ${SUDO[@]}pacman --noconfirm --needed -S ${packages[@]}; then
             LOG info "Success fully installed: ${packages[@]}"
         else
             LOG error "Errors encoutered while installing"
@@ -117,5 +117,5 @@ if ! flatpak list | grep -q 'com.github.wwmm.easyeffects'; then
     # flatpak install -y flathub com.github.wwmm.easyeffects
 fi
 
-echo "Done ✅"
+echo "Done!!"
 

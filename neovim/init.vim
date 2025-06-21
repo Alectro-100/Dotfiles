@@ -18,12 +18,17 @@ call plug#begin('/usr/share/nvim/NVIM')
     Plug 'nvim-telescope/telescope.nvim'
     " Debugging with vimspector
     " Plug 'puremourning/vimspector'
-    " Molokai color scheme
+    " Molokai colorscheme
     Plug 'tomasr/molokai'
+    " gruvbox colorscheme
+    Plug 'morhetz/gruvbox'
+    " nightwolf colorscheme
+    Plug 'ricardoraposo/nightwolf.nvim'
+
 call plug#end()
 
-" Set color scheme to Molokai
-colorscheme molokai
+" Set color scheme to
+colorscheme gruvbox
 " Enable syntax highlighting
 syntax enable
 " Set tab width to 4 spaces
@@ -42,6 +47,8 @@ set guicursor=n-v-c-sm:block
 set signcolumn=no
 " Enable 24-bit RGB color support for terminals
 set termguicolors
+" Set mouse to insert mode
+set mouse=i
 " Enable cursorline (optional)
 set cursorline
 " Enable filetype-specific plugins and indentation
@@ -53,6 +60,7 @@ set swapfile
 set shada='1000,f0,h
 " Automatically jump to the last cursor position when reopening a file
 autocmd BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal! g`\" | zz" | endif
+autocmd BufRead,BufNewFile *.conf set filetype=dosini
 
 
 " Custom commands for compiling and running C/C++ code

@@ -55,7 +55,7 @@ INFO "Downloading into: ${DOWNLOAD_DIRECTORY}"
 INFO "Playlist: ${PLAYLIST_URL}"
 
 yt-dlp \
-    -f "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio" \
+    -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio" \
     -N "$CONCURRENT_DOWNLOADS" \
     --embed-thumbnail --convert-thumbnails jpg \
     --add-metadata \

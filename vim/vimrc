@@ -25,6 +25,9 @@ set tabstop=4
 " Enable 24-bit color support
 set termguicolors
 
+" Set mouse to insert
+set mouse=i
+
 " Enable cursorline for focus
 set cursorline
 

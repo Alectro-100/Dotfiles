@@ -20,22 +20,32 @@
 
 [[ $- != *i* ]] && return
 
-show_current_branch() {
-    blue="\033[38;2;0;200;200m"
-    no_col="\033[0m"
-    branch=$(git symbolic-ref --short HEAD 2>/dev/null)
-    if [[ $? -eq 0 ]]; then
-        echo "${blue}(${no_col}${branch}${blue})${no_col}"
+light_green="\[\033[38;2;163;240;96m\]"
+host_color="\[\033[38;2;231;245;180m\]"
+dir_color="\[\033[38;2;89;159;240m\]"
+branch_col="\[\033[38;2;129;137;223m\]"
+hl="\[\033[1m\]"
+nc="\[\033[0m\]"
+
+opening_bracket="${light_green}[[${nc}"
+closing_bracket="${light_green}]]${nc}"
+username="${light_green}\u${nc}"
+hostname="${host_color}\h${nc}"
+workingdirectory="${dir_color}\w${nc}"
+
+function show_current_branch() {
+    local blue="\033[38;2;0;200;200m"
+    local branch="$(git symbolic-ref --short HEAD 2> /dev/null)"
+    if [[ -n "${branch}" ]]; then
+        echo "${blue}(${nc}${branch_col}${branch}${nc}${blue})${nc} "
     else
         echo ""
     fi
 }
 
-light_green="\033[38;2;163;240;96m"
-host_color="\033[38;2;231;245;180m"
-dir_color="\033[38;2;89;159;240m"
+# Custom Bash prompt by me — for color-coded, Git-aware shell
 
-PROMPT_COMMAND='PS1="\[${light_green}\][[\[\033[0m\] \[\033[1;32m\]\u\[\033[0m\]@\[${host_color}\]\h\[\033[0m\]:\[${dir_color}\]\w\[\033[0m\] \[${light_green}\]]]\[\033[0m\]\[\033[38;2;20;200;40m\]$(show_current_branch)\[\033[0m\] $ "'
+PROMPT_COMMAND='PS1="${opening_bracket} ${username}@${hostname}:${workingdirectory} ${closing_bracket} $ $(show_current_branch)"'
 
 source "$HOME/.cargo/env" 2> /dev/null
 source "$HOME/.shell_rc" 2> /dev/null

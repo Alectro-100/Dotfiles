@@ -4,7 +4,7 @@
 
 IFS=$'\n'
 RED="\033[38;2;244;10;10m"
-GREEN="\033[38;2;80;250;100m"
+GREEN="\033[38;2;161;239;116m"
 WARN="\033[38;2;233;98;116m"
 BROWN="\033[38;2;240;120;120m"
 LIGHT_SKIN="\033[38;2;255;230;180m"
@@ -14,19 +14,17 @@ BLUE="\033[38;2;150;134;255m"
 NC="\033[0m"
 
 declare -a  mpv_flags=()
-MUSIC_DIRECTORY="\${HOME}/Music"
-MUSIC_DIR="$(eval echo ${MUSIC_DIRECTORY})"
-QUIET=
-SELECTED=()
-CURRENTLY_PLAYING=()
-LOOP=0
-SHUFFLE=0
+declare -a SELECTED=() CURRENTLY_PLAYING=()
+
+MUSIC_DIR="${HOME}/Music"
+QUIET=""
 MPV_PID=0
 
 readonly MPV_SOCKET_DIR="/tmp/mpv_playing"
 readonly SOCKET="mpv_socket-$RANDOM"
 readonly MPV_SOCKET="${MPV_SOCKET_DIR}/$SOCKET"
 readonly MPV_LOG="${MPV_SOCKET_DIR}/mpv_log.log"
+readonly MUSIC_DIRECTORY="$( sed "s|/home/$(getent passwd | grep $UID | cut -d: -f1)|${BLUE//\\/\\\\}\${HOME}${NC//\\/\\\\}|g" <(echo ${HOME}/Music) )"
 
 # function cleanup() {
 #     echo '{"text": "", "class": "inactive"}"' | socat - UNIX-CONNECT:${MPV_SOCKET}
@@ -40,10 +38,10 @@ function LOG() {
     shift
     case "${type_}" in
         info)
-            [[ -z "${QUIET}" ]] && echo -e "[${GREEN}*${NC}]: $@"
+            [[ -z "${QUIET}" ]] && { printf "[%b*%b]: " "${GREEN}" "${NC}"; printf "%b""$*\n"; }
             ;;
         command_)
-            [[ -z "${QUIET}" ]] && printf "[${GREEN}*${NC}]: "; printf "%b " "$@\b\n"
+            [[ -z "${QUIET}" ]] && { printf "[%b*%b]: " "${GREEN}" "${NC}"; printf "%b " "$@\b\n"; }
             ;;
         warn)
             echo -e "[${WARN}^${NC}]: $@"
@@ -99,7 +97,7 @@ function Usage() {
         "   🔹 Applies optimized mpv flags (hardware decoding, mpris, hdr, etc.)" \
         "" \
         " ${MUDDY}Examples:${NC}" \
-        "   PlayMusic                   # Launch, pick music, play (loop each)" \
+        "   PlayMusic                   # Launch, pick music, play (loop-playlist)" \
         "   PlayMusic --shuffle         # Random shuffle" \
         "   PlayMusic --vol=45          # Set volume to 45" \
         "" \
@@ -110,8 +108,7 @@ function Usage() {
 function IPC_() {
     local data="$1"
     shift
-    local -a args=("$@")
-    local -a arr=()
+    local -a args=("$@") arr=()
 
     for (( i=0; i < ${#args[@]}; i++ )); do
         arr+=("${args[$i]}")
@@ -120,7 +117,7 @@ function IPC_() {
         fi
     done
     if [[ -S "${MPV_SOCKET}" ]] && pgrep -x mpv | grep -q -o $MPV_PID; then
-        echo "{ \"command\": [ ${arr[@]} ] }" | ncat -U "${MPV_SOCKET}" | jq ".$data" 2> /dev/null
+        echo "{ \"command\": [ ${arr[@]} ] }" | ncat -U "${MPV_SOCKET}" | jq -r ".$data" 2> /dev/null
     else
         Exit 1
     fi
@@ -136,7 +133,7 @@ function BackgroundStatusLogger() {
             dur=$(IPC_ 'data' '"get_property"' '"duration"' | awk '{printf "%d:%02d", int($1/60), int($1%60)}') &> /dev/null
         fi
         [[ "$title" != "$prev_title" || "$pos" != "$prev_pos" ]] && {
-            printf "\r\033[2K[${BLUE}*${NC}]: Playing: ${GREEN}%s"${NC}" | %s / %s" "${title}" "$pos" "$dur"
+            printf "\r\033[2K[${BLUE}*${NC}]: Playing: '${GREEN}%s${NC}' | %s / %s" "${title}" "$pos" "$dur"
             prev_title="$title"
             prev_pos=$pos
         }
@@ -171,7 +168,7 @@ function HandleIpcControl() {
                 LOG info "Enter"
                 ;;
             $'\x1b')
-                while IFS= read -rsn1 -t 0.01 key; do
+                while IFS= read -rsn1 -t 0.0006 key; do
                     KEY+="$key"
                 done
                 [[ ${KEY} == $'\x1b[A' ]] && IPC_ 'error' '"add"' '"volume"' 5 &> /dev/null
@@ -192,12 +189,12 @@ function TurnMusicOn() {
     mkdir -p "${MPV_SOCKET_DIR}"
 
 
-    if [[ $LOOP -eq 1 ]]; then
+    if [[ $loop -eq 1 ]]; then
         LOG info "${BLUE}Tracks${NC}:"
         for (( i=0; i < ${#files_joined[@]}; i++)); do
             track_num=$((i+1))
             file="${files_joined[$i]}"
-            quoted_files+=("\"${BLUE}${MUSIC_DIRECTORY}${NC}/${LIGHT_SKIN}${file}${NC}\"")
+            quoted_files+=("'${BLUE}${MUSIC_DIRECTORY}${NC}/${LIGHT_SKIN}${file}${NC}'")
             CURRENTLY_PLAYING+=("$(basename "${MUSIC_DIRECTORY}/${file}")")
             LOG info "  ${GREY}$track_num${NC} ${LIGHT_SKIN}${CURRENTLY_PLAYING[$i]%.*}${NC}"
         done
@@ -215,7 +212,7 @@ function TurnMusicOn() {
         for f in "${files_joined[@]}"; do
             CURRENTLY_PLAYING="$(basename "${MUSIC_DIRECTORY}/${f}")"
             LOG info "${GREY}MUSIC${NC}: ${GREEN}${CURRENTLY_PLAYING%.*}${NC}"
-            LOG command_ "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} \"${LIGHT_SKIN}${MUSIC_DIRECTORY}/${f}${NC}\"\n"
+            LOG command_ "${GREY}COMMAND${NC}: ${BROWN}mpv${NC} ${mpv_flags[@]} '${LIGHT_SKIN}${MUSIC_DIRECTORY}/${f}${NC}'\n"
             # echo "{\"text\": \"🎵 ${CURRENTLY_PLAYING%.*}\", \"class\":\"active\"}" | socat - UNIX-CONNECT:${MPV_SOCKET}
             mpv ${mpv_flags[@]} "${MUSIC_DIR}/${f}"
         done
@@ -240,16 +237,18 @@ function main() {
     local arg=
     local volume=
     local video=
+    loop=0
+    shuffle=0
 
     CheckDependencies
 
     for (( i=0 ; i < ${#ARG_ARR[@]} ; i++ )); do
         arg="${ARG_ARR[$i]}"
         case "${arg}" in
-            vid|-vid|--vid|-video|--video)
+            vid|--vid|--video|video)
                 video="auto"
                 ;;
-            vol|-vol|--vol|-volume|--volume)
+            vol|--vol--volume|volume)
                 volume=${ARG_ARR[ $((i+1)) ]}
                 [[ -z ${volume} || ${volume} == -* ]] && {
                     LOG error "No argument give after ${GREY}--volume${NC}"
@@ -258,7 +257,7 @@ function main() {
                 }
                 i=$((i+1))
                 ;;
-            -vol=*|--vol=*|--volume=*)
+            vol=*|--vol=*|--volume=*|volume=*)
                 if [[ "${arg#*=}" =~ ^[0-9]+$ ]]; then
                     volume=$(awk -F'=' '{print $2}' <<< "${arg}")
                 else
@@ -269,10 +268,10 @@ function main() {
             -q|--quiet)
                 QUIET="--really-quiet"
                 ;;
-            -s|--shuff|--shuffle)
-                SHUFFLE=1
+            -s|--shuff|shuff|--shuffle|shuffle)
+                shuffle=1
                 ;;
-            -h|--help)
+            -h|--help|help)
                 Usage
                 Exit 0
                 ;;
@@ -286,16 +285,15 @@ function main() {
 
     mapfile -t SELECTED < <(find "${MUSIC_DIR}" \( -type f -iregex '.*\.\(mp3\|flac\|m4a\|wav\|aac\|ogg\|opus\|wma\|alac\|ape\|mpc\|wavpack\)' \) -printf "%P\n" | fzf --multi)
 
-
     if [[ ${#SELECTED[@]} -eq 0 ]]; then
         LOG info "No song selected"
         Exit 1
     elif [[ ${#SELECTED[@]} -gt 1 ]]; then
-        LOOP=1
+        loop=1
     fi
 
-    [[ $SHUFFLE -eq 1 && $LOOP -eq 0 ]] && LOG warn "Shuffle can only be used with mutiple tracks"
-    [[ $SHUFFLE -eq 1 ]] && SELECTED=($(printf "%s\n" "${SELECTED[@]}" | shuf))
+    [[ $shuffle -eq 1 && $loop -eq 0 ]] && LOG warn "Shuffle can only be used with mutiple tracks"
+    [[ $shuffle -eq 1 ]] && SELECTED=($(printf "%s\n" "${SELECTED[@]}" | shuf))
 
     mpv_flags+=(
         "--vid=${video:-"no"}"
@@ -311,7 +309,7 @@ function main() {
         "--msg-level=ffmpeg/demuxer=error"
     )
 
-    if [[ $LOOP -eq 1 ]]; then
+    if [[ $loop -eq 1 ]]; then
         mpv_flags+=(
             "--loop-playlist=inf"
             "--input-ipc-server=${MPV_SOCKET}"

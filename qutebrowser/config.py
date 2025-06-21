@@ -27,6 +27,8 @@ c.url.searchengines = {
 c.completion.open_categories = ['searchengines', 'quickmarks', 'bookmarks', 'history', 'filesystem']
 
 
+c.editor.command = ["foot", "vim" "-f", "{file}"]
+
 c.auto_save.session = True # save tabs on quit/restart
 
 # keybinding changes

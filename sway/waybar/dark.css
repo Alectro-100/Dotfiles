@@ -37,7 +37,7 @@
 }
 
 window#waybar {
-    background-color: rgba(43, 48, 59, 0.4);
+    background-color: rgba(43, 48, 59, 0.3);
     transition-property: background-color;
     /* border-bottom: 3px solid rgba(100, 114, 125, 0.5); */
     color: #FFFFFF;

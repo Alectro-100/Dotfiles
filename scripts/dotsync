@@ -4,46 +4,50 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # Your git local dotfile repository
-GIT_DIR="${HOME}/DEV/Dotfiles"
+GIT_DIR="${HOME}/repos/dotfiles"
 
 # Github username and dotfile repository
 USERNAME="Alectro-100"
 REPO_NAME="Dotfiles"
-
-### File to file Copy
-declare -A FILES_TO_COPY=(
-    ["/etc/vimrc"]="${GIT_DIR}/vim/vimrc"
-    ["/etc/xdg/nvim/init.vim"]="${GIT_DIR}/neovim/init.vim"
-    ["${HOME}/.shell_rc"]="${GIT_DIR}/shell/SHELL_RC"
-    ["${HOME}/.bashrc"]="${GIT_DIR}/shell/bashrc"
-    ["${HOME}/.config/foot/foot.ini"]="${GIT_DIR}/foot/foot.ini"
-    ["${HOME}/.config/alacritty/alacritty.toml"]="${GIT_DIR}/alacritty/alacritty.toml"
-)
-
-### Directory to Directory Copy
-declare -A DIRS_TO_COPY=(
-    ["${HOME}/.config/hypr"]="${GIT_DIR}/hyprland"
-    ["${HOME}/.config/sway"]="${GIT_DIR}/sway"
-    ["${HOME}/.config/i3"]="${GIT_DIR}/i3"
-    ["${HOME}/.config/waybar"]="${GIT_DIR}/waybar"
-    ["${HOME}/.config/wofi"]="${GIT_DIR}/wofi"
-    ["${HOME}/.config/qutebrowser"]="${GIT_DIR}/qutebrowser"
-    ["${HOME}/.bin"]="${GIT_DIR}/scripts"
-)
-
-# ASCII colors
-GREEN="\033[38;2;100;255;40m"
-YELLOW="\033[38;2;255;190;65m"
-BLUE="\033[38;2;100;100;240m"
-RED="\033[38;2;255;10;10m"
-NC="\033[0m"
-HL="\033[1m"
 
 # command in use to copy stuff
 SYNC_="rsync"
 
 # LOG=0 ERROR=1 INFO=2 DEBUG=3
 LOG_LEVEL=1
+
+CONF_DIR="${HOME}/.config"
+### File to file Copy
+declare -A FILES_TO_COPY=(
+    ["/etc/vimrc"]="${GIT_DIR}/vim/vimrc"
+    ["/etc/xdg/nvim/init.vim"]="${GIT_DIR}/neovim/init.vim"
+    ["${HOME}/.shell_rc"]="${GIT_DIR}/shell/SHELL_RC"
+    ["${HOME}/.bashrc"]="${GIT_DIR}/shell/bashrc"
+)
+
+### Directory to Directory Copy
+declare -a DIRS_TO_COPY=(
+    "${HOME}/.bin|${GIT_DIR}/scripts|1"
+    "${CONF_DIR}/hypr|${GIT_DIR}/hyprland|1"
+    "${CONF_DIR}/sway|${GIT_DIR}/sway|1"
+    "${CONF_DIR}/i3|${GIT_DIR}/i3|1"
+    "${CONF_DIR}/waybar|${GIT_DIR}/waybar|1"
+    "${CONF_DIR}/wofi|${GIT_DIR}/wofi|1"
+    "${CONF_DIR}/qutebrowser|${GIT_DIR}/qutebrowser|1"
+    "${CONF_DIR}/yazi|${GIT_DIR}/yazi|1"
+    "${CONF_DIR}/foot|${GIT_DIR}/foot|1"
+    "${CONF_DIR}/kitty|${GIT_DIR}/kitty|1"
+    "${CONF_DIR}/alacritty|${GIT_DIR}/alacritty|1"
+)
+
+# ASCII colors
+GREEN="\033[38;2;42;204;126m"
+BLUE="\033[38;2;121;118;214m"
+PURPLE="\033[38;2;233;132;64m"
+YELLOW="\033[38;2;238;209;113m"
+RED="\033[38;2;255;10;10m"
+NC="\033[0m"
+HL="\033[1m"
 
 # Temporary variable
 MSG=""
@@ -72,63 +76,74 @@ function DEBUG_LOG() {
     }
 }
 
-function CopyFiles() {
-    local SOURCE="$1"
-    local DEST="$2"
+function ColorPath() {
+    echo "$( sed "s|/home/$(getent passwd | grep $UID | cut -d':' -f1)/|${BLUE//\\/\\\\}\${HOME}${NC//\\/\\\\}/|g" <(printf "%s\n" "${1}") )"
+}
 
-    if [[ ! -f "${SOURCE}" ]]; then
-        ERROR "Source '${BLUE}${SOURCE}${NC}' file does not exist"
+function CopyFiles() {
+    local src_="$1"
+    local dest_="$2"
+    local -a cmd_flags=()
+
+    if [[ ! -f "${src_}" ]]; then
+        ERROR "Source '${BLUE}${src_}${NC}' file does not exist"
         return 1
     fi
 
-    mkdir --parents -- $(dirname "${DEST}")
+    if [[ "$SYNC_" != "rsync" ]]; then
+        ERROR "Deletion of orphanes requires 'rsync'. Current: '$SYNC_'"
+        return 1
+    fi
 
-    if [[ $LOG_LEVEL -ge 2 ]]; then
-        if [[ "$SYNC_" == "rsync" ]]; then
-            $SYNC_ --progress --archive "${SOURCE}" "${DEST}" || ERROR "Copy failed"
-            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
-        else
-            $SYNC_ --verbose "${SOURCE}" "${DEST}" || ERROR "Copy failed"
-            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
-        fi
+    mkdir --parents -- "$(dirname "${dest_}")"
+
+    if [[ "$SYNC_" == "rsync" ]]; then
+        [[ $LOG_LEVEL -ge 2 ]] && cmd_flags+=( "--progress" )
+        cmd_flags+=( "--archive" )
+    elif [[ "$SYNC_" == "cp" ]]; then
+        [[ $LOG_LEVEL -ge 2 ]] && cmd_flags+=( "--verbose" )
+        cmd_flags+=( "--archive" )
+        cmd_flags+=( "--recursive" "--no-target-directory"  )
+    fi
+
+    if $SYNC_ "${cmd_flags[@]}" "${src_}" "${dest_}"; then
+        INFO "Copied '${GREEN}$(ColorPath ${src_})${NC}' ${PURPLE}--->${NC} '${BLUE}$(ColorPath ${dest_})${NC}'"
     else
-        if [[ "$SYNC_" == "rsync" ]]; then
-            $SYNC_ --archive "${SOURCE}" "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
-            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
-        else
-            $SYNC_ "${SOURCE}" "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
-            INFO "Copied '${GREEN}${SOURCE}${NC}' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
-        fi
+        ERROR "Copy Failed: ${src_} --> ${dest_}"
     fi
 }
 
 function CopyDirs() {
-    local SOURCE="$1"
-    local DEST="$2"
+    local src_="$1"
+    local dest_="$2"
+    local -i delete_flag=$3
+    local -a cmd_flags=()
 
-    if [[ ! -d "${SOURCE}" ]]; then
-        ERROR "Source '${BLUE}${SOURCE}${NC}' directory does not exist"
+    if [[ ! -d "${src_}" ]]; then
+        ERROR "Source '${BLUE}${src_}${NC}' directory does not exist"
         return 1
     fi
 
-    mkdir --parents -- "${DEST}"
+    if [[ "$SYNC_" != "rsync" && $delete_flag -eq 1 ]]; then
+        ERROR "Deletion of orphanes requires 'rsync'. Current: '$SYNC_'"
+        return 1
+    fi
 
-    if [[ $LOG_LEVEL -ge 2 ]]; then
-        if [[ "$SYNC_" == "rsync" ]]; then
-            $SYNC_ --progress --archive "${SOURCE}/" "${DEST}/" || ERROR "Copy failed"
-            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
-        else
-            $SYNC_ --verbose --recursive "${SOURCE}"/* "${DEST}" || ERROR "Copy failed"
-            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
-        fi
+    mkdir --parents -- "${dest_}"
+
+    if [[ "$SYNC_" == "rsync" ]]; then
+        [[ $LOG_LEVEL -ge 2 ]] && cmd_flags+=( "--progress" )
+        [[ $delete_flag -eq 1 ]] && cmd_flags+=( "--delete" )
+        cmd_flags+=( "--archive" )
+    elif [[ "$SYNC_" == "cp" ]]; then
+        [[ $LOG_LEVEL -ge 2 ]] && cmd_flags+=( "--verbose" )
+        cmd_flags+=( "--archive" "--no-target-directory"  )
+    fi
+
+    if $SYNC_ "${cmd_flags[@]}"  "${src_}/" "${dest_}/"; then
+        INFO "Copied '${GREEN}$(ColorPath ${src_})${NC}' ${PURPLE}--->${NC} '${BLUE}$(ColorPath ${dest_})${NC}'"
     else
-        if [[ "$SYNC_" == "rsync" ]]; then
-            $SYNC_ --archive "${SOURCE}/" "${DEST}/" 1> /dev/null 2>&1 || ERROR "Copy failed"
-            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
-        else
-            $SYNC_ --recursive "${SOURCE}"/* "${DEST}" 1> /dev/null 2>&1 || ERROR "Copy failed"
-            INFO "Copied '${GREEN}${SOURCE}${NC}/*' ${RED}--->${NC} '${BLUE}${DEST}${NC}'"
-        fi
+        ERROR "Copy Failed: ${src_} --> ${dest_}"
     fi
 }
 
@@ -150,14 +165,20 @@ function CloneRepo() {
     DEBUG_LOG "Getting dotfile repo from github"
     INFO "Cloning your repository at: $DIR"
     git clone "https://github.com/${USERNAME}/${REPO_NAME}.git" "${DIR}" && \
-        INFO "Repository clone at '${BLUE}${DIR}${NC}'"
+        INFO "Repository clone at '${BLUE}$(ColorPath ${DIR})${NC}'"
 }
 
-function PushRepo() {
+function PushToRepo() {
     local force="$1"
     local satisfied=""
     local should_continue=""
     local should_commit=""
+    local commit_template_file=""
+    for file in ~/.git_commit_template_file ~/.gitmessage ~/.git_template; do
+        [[ -s "${file}" ]] && commit_template_file="${file}"
+    done
+
+    [[ -z "${commit_template_file}" ]] && commit_template_file=<( printf "[tag] module: what changed\n\n" )
 
     [[ -z "${USERNAME}" ]] && {
         ERROR "No github username given"
@@ -183,8 +204,13 @@ function PushRepo() {
     if [[ "${satisfied}" =~ ^(y|yes|Yes)$ ]]; then
         printf "%s: " "Commit? (y|n)"; read -r should_commit
         [[ "${should_commit}" =~ ^(y|yes|Yes)$ ]] || return 1
-        git commit --template=<( printf "[tag] module: what changed\n\n" ) && \
+        if git commit --template="${commit_template_file}"; then
             INFO "Successfully commited the changes"
+        else
+             if ! git diff --quiet --staged && git diff --quiet --staged; then
+                 ERROR "Commit failed" && exit 1
+             fi
+        fi
     else
         INFO "Commit aborted"
         printf "%s: " "Continue to commit?"; read -r should_continue
@@ -253,7 +279,7 @@ function main() {
                     LOG_LEVEL=1
                     DEBUG_LOG "Verbose is set"
                     ;;
-                -l=*|--log=*|--loglevel=*)
+                -l=*|--log=*|--loglevel=*|--log-level=*)
                     LOG_LEVEL=${arg#*=}
                     if [[ -z ${LOG_LEVEL} || ${LOG_LEVEL} == -* ]] || [[ ! ${LOG_LEVEL} =~ ^[0-9]+$ ]]; then
                         LOG_LEVEL=1
@@ -262,7 +288,7 @@ function main() {
                     fi
                     [[ $LOG_LEVEL -ge 3 ]] && DEBUG_LOG "Debugging enabled"
                     ;;
-                -l|--log|--loglevel)
+                -l|--log|--loglevel|--log-level)
                     LOG_LEVEL=${flagArr[$(( i + 1 ))]:-1}
 
                     if [[ -z ${LOG_LEVEL} || ${LOG_LEVEL} == -* ]]; then
@@ -334,16 +360,16 @@ function main() {
 
     # Why local dotfile directory doesn't exist
     if [[ ! -d "${GIT_DIR}" ]]; then
-        INFO "${GIT_DIR} doesn't exist"
+        INFO "$(ColorPath ${GIT_DIR}) doesn't exist"
         mkdir --parents "${GIT_DIR}" && {
-            INFO "Created ${GIT_DIR}"
+            INFO "Created $(ColorPath ${GIT_DIR})"
         } || {
             ERROR "Cannot create '${BLUE}${GIT_DIR}${NC}'"
             exit 1
         }
     fi
 
-    DEBUG_LOG "Using GIT_DIR=$GIT_DIR"
+    DEBUG_LOG "Using GIT_DIR=$(ColorPath ${GIT_DIR})"
     DEBUG_LOG "Using git_status=$git_status"
     DEBUG_LOG "Using LOG_LEVEL=$LOG_LEVEL"
     DEBUG_LOG "Using SYNC_=$SYNC_"
@@ -353,9 +379,10 @@ function main() {
         CopyFiles "${src}" "${FILES_TO_COPY[$src]}"
     done
 
-    # Start copying directory content to the the destination
-    for src in "${!DIRS_TO_COPY[@]}"; do
-        CopyDirs "${src}" "${DIRS_TO_COPY[$src]}"
+    # Start copying directory content with selective deletion
+    for dir_spec in "${DIRS_TO_COPY[@]}"; do
+        IFS=$'|' read -r src dest delete_flag <<< ${dir_spec}
+        CopyDirs "${src}" "${dest}" "${delete_flag}"
     done
 
     if [[ ${git_status} -eq 1 ]]; then
@@ -363,11 +390,13 @@ function main() {
         git status
     fi
 
-    echo && INFO "Dotfile directory: ${BLUE}${GIT_DIR}${NC}\n"
+    echo && INFO "Dotfile directory: ${BLUE}$(ColorPath ${GIT_DIR})${NC}\n"
 
-    [[ $should_push -eq 1 ]] && {
-        PushRepo "${force}"
-    }
+    if [[ $should_push -eq 1 ]]; then
+        PushToRepo "${force}"
+    else
+        return 0
+    fi
 }
 
 main "$@"

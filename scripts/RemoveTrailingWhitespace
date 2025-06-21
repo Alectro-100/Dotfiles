@@ -16,7 +16,7 @@ def remove_trailing_spaces(file_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python remove_trailing_spaces.py file1 file2 ...")
+        print(f"Usage: python {sys.argv[0]} file1 file2 ...")
         sys.exit(1)
 
     for file_arg in sys.argv[1:]:

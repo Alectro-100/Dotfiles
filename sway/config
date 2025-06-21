@@ -6,7 +6,7 @@ font pango: SourceCodePro Large 4
 
 ### Waybar ###
     bar {
-        swaybar_command waybar
+        # swaybar_command waybar
     }
 
 ### Output devices (Display) ###
@@ -17,7 +17,7 @@ font pango: SourceCodePro Large 4
     set $OUTPUT $OUTPUT_DP
 
     # workspace $OUTPUT output $OUTPUT
-    output $OUTPUT  background wallpapers/main.wallpaper fill
+    output $OUTPUT  background imgs/dark_1.jpg fill
     output $OUTPUT  mode 1920x1080@144Hz
     output $OUTPUT  scale 1
     output $OUTPUT  transform normal
@@ -29,7 +29,7 @@ font pango: SourceCodePro Large 4
     output $OUTPUT  allow_tearing yes
     output $OUTPUT  color_profile icc /usr/share/color/icc/colord/sRGB.icc
 
-### Enable Xwayland ###
+### Enable Xwayland ##
     xwayland enabled
 
 ### Input devices ###
@@ -76,36 +76,6 @@ font pango: SourceCodePro Large 4
 ### Set $mod (Mod4 or Super) for logo key ###
     set $mod Super
 
-    # Alphabets kecodes if I need
-    set $backslash 51
-    set $A  38
-    set $B  56
-    set $C  54
-    set $D  40
-    set $E  26
-    set $F  41
-    set $G  42
-    set $H  43
-    set $I  31
-    set $J  44
-    set $K  45
-    set $M  58
-    set $L  46
-    set $N  57
-    set $O  32
-    set $P  33
-    set $Q  24
-    set $R  27
-    set $S  39
-    set $T  28
-    set $U  30
-    set $V  55
-    set $W  25
-    set $X  53
-    set $Y  29
-    set $Z  52
-
-
 ### Vim bindings everywhere ###
     set $left h
     set $down j
@@ -113,12 +83,14 @@ font pango: SourceCodePro Large 4
     set $right l
 
 ### My Application launcher ###
-    set $menu_wofi wofi -W 40% -H 32% --gtk-dark --allow-images --config $HOME/.config/wofi/wofi.conf --allow-markup --hide-scroll --prompt="Search" --show drun
+    set $menu_wofi wofi -W 40% -H 32% --gtk-dark --allow-images --config ${HOME}/.config/wofi/wofi.conf --allow-markup --hide-scroll --prompt="Search" --show drun
     set $menu_rofi rofi -show-icons -font Hack -theme material -show drun
 
 
 ### Auto Start ###
     exec --no-startup-id /usr/lib/polkit-kde-authentication-agent-1
+    # Start's waybar
+        exec --no-startup-id ${HOME}/.config/sway/theme.sh
     exec --no-startup-id autotiling
     exec --no-startup-id ${HOME}/.scripts/something
     exec --no-startup-id  bash -c \
@@ -126,10 +98,10 @@ font pango: SourceCodePro Large 4
 
     exec_always --no-startup-id bash -c 'sock="${XDG_RUNTIME_DIR}/foot${WAYLAND_DISPLAY/#/-}.sock"; [[ -S "${sock}" ]] || foot --server=${sock}'
     exec_always --no-startup-id ${HOME}/.bin/NowPlaying
-    exec_always --no-startup-id swayidle -w \
-            timeout 120 ".config/sway/lock_screen/lock_screen" \
+    exec_always --no-startup-id pkill -x swayidle; swayidle -w \
+            timeout 100 "${HOME}/.config/sway/lock.sh" \
             resume "swaymsg 'output * power on'" \
-            before-sleep "swaylock --daemonize --image $HOME/.config/sway/lock_screen/bg.jpg"
+            before-sleep "${HOME}/.config/sway/lock.sh set_bg"
 
 ### Window rules ###
     # Set opacity for all windows
@@ -139,7 +111,7 @@ font pango: SourceCodePro Large 4
     # Border of floating window
         for_window [class=".*"] default_floating_border pixel 1
     # Transparancy levels for applications
-        for_window [app_id="foot"] opacity 0.98
+        for_window [app_id="foot"] opacity 0.97
         for_window [app_id="waterfox|kitty"] opacity 1
     # Any App Id with 'Pop-Up', make it float it
         for_window [app_id="Pop-Up"] floating enable, move position center
@@ -167,7 +139,7 @@ font pango: SourceCodePro Large 4
 
 ### Keybindings for Containers/Workspaces/Layout/Behaviour/Volume/Brightnes/Focus ###
 
-    #* Reload the configuration file and start the waybar *#
+    #* Reload the configuration file
         bindsym $mod+Shift+c exec swaymsg reload
 
     #* Exit sway (Kicks you out of your Wayland session) *#
@@ -293,7 +265,7 @@ font pango: SourceCodePro Large 4
 
     #* Executable Binaries *#
         # Keyboard centric browser
-            bindsym Tab+B exec qutebrowser
+            bindsym $mod+F1 exec qutebrowser
         # Bring my Text-fu terminal
             bindsym $mod+Return exec footclient
             bindsym $mod+Shift+Return exec alacritty
@@ -330,7 +302,7 @@ font pango: SourceCodePro Large 4
                     '$(DIR="${HOME}/Grim_Screenshots"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; grim -g "$(slurp)" "${DIR}/$(date +%d-%b-%Y_%H:%M:%S).png")'
 
         # Edit this (sway config) with neovim or vim
-            bindsym $mod+I exec bash -c \
+            bindsym $mod+Shift+I exec bash -c \
                 'CONF=${HOME}/.config/sway/config; command -v nvim && EDIT=nvim || EDIT=vim; foot ${EDIT} ${CONF}'
 
         # Shutdown (Mod+Alt+Shift+P)
@@ -359,10 +331,10 @@ font pango: SourceCodePro Large 4
 
         # What's my selected screen resolution? (Mod+Shift+G)
             bindsym $mod+Shift+G exec bash -c \
-                '$(Res="$(slurp)" && notify-send "${Res}")'
+                '$(Res="$(slurp)" && notify-send -t 10000 "${Res}")'
 
         # List of Emojies in rofi-emoji (backslash+E)
-            bindcode $backslash+$E exec bash -c \
+            bindsym $mod+grave+V exec bash -c \
                 '$(rofi -modi emoji -show emoji)'
 
     #* System monitors *#
@@ -381,18 +353,21 @@ font pango: SourceCodePro Large 4
 
     #* Scripts *#
         # An application launcher
-           bindsym $mod+D exec ${HOME}/.config/waybar/scripts/application_launcher
+            bindsym F10 exec pkill -x waybar && pkill -SIGUSR1 -f .config/sway/theme.sh
+
+        # An application launcher
+            bindsym $mod+D exec ${HOME}/.config/waybar/scripts/application_launcher
 
         # Create cava windows to look cool
-           bindsym $mod+P exec "${HOME}/.bin/CavaInstances"
-           bindsym $mod+O exec "${HOME}/.bin/CavaInstances CLEAN"
+            bindsym $mod+P exec "${HOME}/.bin/CavaInstances"
+            bindsym $mod+O exec "${HOME}/.bin/CavaInstances CLEAN"
 
         # Execute whatever the hell that script does
-           bindcode $backslash+$Z exec bash -c \
+            bindsym $mod+grave+G exec bash -c \
                '$(foot -e ${HOME}/.scripts/exec_me)'
 
         # Journal time: Let's document the mess
-            bindcode $backslash+$J exec bash -c \
+            bindsym $mod+grave+J exec bash -c \
                 '$(foot -e ${HOME}/.bin/JournalToday nvim)'
 
 

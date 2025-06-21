@@ -173,9 +173,9 @@
     save_to_clipboard     = true
     semantic_escape_chars = ",│`|:\"' ()[]{}<>"
 
-# [terminal.shell]
-    # args    = ["-l", "-c", "tmux attach || tmux"]
-    # program = "/bin/zsh"
+[terminal.shell]
+    args    = ["-l", "-c", "tmux attach-session &> /dev/null || tmux new-session -s Homie &> /dev/null"]
+    program = "/bin/zsh"
 
 [window.dimensions]
     columns = 120

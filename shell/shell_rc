@@ -29,6 +29,15 @@ function LOG() {
     esac
 }; alias Log="LOG"; alias L="LOG"
 
+function ColorPath() {
+    echo "$( sed "s|/home/$(getent passwd | grep $UID | cut -d':' -f1)/|${BLUE//\\/\\\\}\${HOME}${NC//\\/\\\\}/|g" <(printf "%s\n" "${1}") )"
+}
+
+if [[ -n ${ZSH_VERSION} ]]; then
+    unsetopt EXTENDED_HISTORY
+    unsetopt extendedhistory
+fi
+
 ### Global variables
 export HOSTNAME="$(cat /etc/hostname)"
 export LANG=en_US.UTF-8
@@ -50,15 +59,12 @@ alias ll="lsd --long --color=always --git --icon=always --group-dirs=first --cla
 alias la="lsd --color=always --git --all --icon=always --group-dirs=first --classify --permission octal --total-size 2> /dev/null"
 alias diff="diff --color=auto"
 alias cp="LOG error '${RED}Use rsync MF${NC}'; return 1 &> /dev/null"
-alias catbat="bat --color=always --decorations=never --paging=never"
 alias grep="grep --color=always"
 alias dir="dir --color=always"
 alias ncdu="ncdu --color dark"
 alias qemu="qemu-system-x86_64"
 alias sway="env WLR_RENDERER=vulkan sway &> /tmp/sway.log"
 alias VimBeGood="clear; docker run -it --rm brandoncc/vim-be-good:stable && echo && clear"
-alias CPP="cd ${HOME}/DEV/C_PlusPlus/incompleted_souls.dir && git status"
-alias C="cd ${HOME}/DEV/C_Lang && git status"
 alias sourceme="source ~/.zshrc.pre-oh-my-zsh"
 alias zshrc="vim ~/.zshrc"
 alias vimrc="vim ~/.vimrc"
@@ -73,7 +79,6 @@ alias gs="git status"
 alias Fonts="fc-list | awk -F':' '{print $1}' | awk -F'/' '{print $6}' | awk -F'.' '{print $1}' | sort -u"
 alias swayconfig="${EDITOR} ${HOME}/.config/sway/config"
 alias waybarconfig="nvim ${HOME}/.config/waybar/"
-alias Spanish="cd ${HOME}/Notes/Language/Spanish"
 alias NULL="/dev/null"
 alias M="${HOME}/Music"
 alias n="nvim"
@@ -86,6 +91,10 @@ alias radeontop="radeontop --color"
 alias exiftool="/usr/bin/vendor_perl/exiftool"
 alias metadata="/usr/bin/vendor_perl/exiftool"
 alias lsblk="lsblk --paths -o+SIZE --fs"
+alias Cat="/usr/bin/bat --theme-dark=TwoDark --color=always --paging=always --decorations=never"
+
+alias сдуфк="clear"
+alias ды="ls"
 
 ### Flatpak Applications
 alias fp-scrivano="flatpak run com.github.scrivanolabs.scrivano"
@@ -115,7 +124,8 @@ function PackageManager() {
             return 0
         fi
     done
-}; alias pkg="PackageManager"; alias my_pkg_m="PackageManager"; alias my_package_manager="PackageManager"; alias my-package-manager="PackageManager"
+}; alias pkg="PackageManager"; alias my_pkg_m="PackageManager"
+alias my_package_manager="PackageManager"; alias my-package-manager="PackageManager"
 
 function RequiredTools() {
     ## Get PackageManager
@@ -142,7 +152,7 @@ function RequiredTools() {
         # Scripting languages
         python ruby node npm php
         # Productivity
-        htop btop tmux figlet cowsay tree jq fzf bat lsd eza rg pastel unzip zip
+        htop btop tmux figlet cowsay tree jq fzf bat lsd eza rg unzip zip
         # Compilers
         gcc clang gdb make cmake rustc
         # Media/ TUI visulas
@@ -161,7 +171,8 @@ function RequiredTools() {
         fi
     done
     return 0
-}; alias goodies="RequiredTools"; alias availabletools="RequiredTools"; alias mytools="RequiredTools"
+}; alias goodies="RequiredTools"; alias availabletools="RequiredTools"
+alias mytools="RequiredTools"; alias tools="RequiredTools"
 
 function RotTransform() {
     local operation_type="$1"
@@ -174,8 +185,8 @@ function RotTransform() {
 
     [[ -z "${Input}" ]] && {
         LOG error "Input '${Input}' is empty"
-        return 1
-    }
+            return 1
+        }
 
     if [[ "${operation_type}" == "encode" ]]; then
         operation=("${Enc[@]}")
@@ -185,8 +196,8 @@ function RotTransform() {
 
     [[ -d "${Input}" ]] && {
         LOG error "Cannot use directories"
-        return 1
-    }
+            return 1
+        }
     if [[ -n "${save_path}" && -f  "${save_path}" ]]; then
         save_path="${save_path}"
     else
@@ -207,74 +218,74 @@ function rot13() {
     [[ -n $ZSH_VERSION ]] && emulate -LR bash
     local -a ARGS=("$@")
     local argc=${#ARGS[@]}
-    local operation=
-    local save_path=
-    local input=
-    local arg=
-    local next_arg=
+        local operation=
+        local save_path=
+        local input=
+        local arg=
+        local next_arg=
 
-    if [[ $# -lt 1 ]]; then
-        LOG error "At least one arguments expected"
-        LOG info "rot13 <encode/decode> <file/string>"
-        return 1
-    fi
+        if [[ $# -lt 1 ]]; then
+            LOG error "At least one arguments expected"
+            LOG info "rot13 <encode/decode> <file/string>"
+            return 1
+        fi
 
-    for (( i=0 ; i < argc; i++ )); do
-        arg="${ARGS[$i]}"
-        case "${arg}" in
-            -s|-save|--save)
-                save_path="${ARGS[$(($i+1))]}"
-                i=$((i+1))
-                [[ -z "${save_path}" || ! -f "${save_path}" ]] && {
-                    LOG error "Not a valid path: '${save_path}'"
-                }
+        for (( i=0 ; i < argc; i++ )); do
+            arg="${ARGS[$i]}"
+            case "${arg}" in
+                -s|-save|--save)
+                    save_path="${ARGS[$(($i+1))]}"
+                    i=$((i+1))
+                    [[ -z "${save_path}" || ! -f "${save_path}" ]] && {
+                        LOG error "Not a valid path: '${save_path}'"
+                    }
                 ;;
             -s=*|-save=*|--save=*)
                 save_path="${arg#*=}"
                 [[ -z "${save_path}" || ! -f "${save_path}" ]] && {
                     LOG error "Not a valid path: '${save_path}'"
                 }
-                ;;
-            -e|-encode|--encode|encode|enc)
-                operation="encode"
-                ;;
-            -d|-decode|--decode|decode|dec)
-                operation="decode"
-                ;;
-            *)
-                if [[ -n "${arg}" ]]; then
-                    [[ -z "${input}" ]] && input="${arg}" || {
-                        LOG warn "Two inputs, Ignoring ${arg}"
-                    }
-                fi
-                ;;
-        esac
-    done
+            ;;
+        -e|-encode|--encode|encode|enc)
+            operation="encode"
+            ;;
+        -d|-decode|--decode|decode|dec)
+            operation="decode"
+            ;;
+        *)
+            if [[ -n "${arg}" ]]; then
+                [[ -z "${input}" ]] && input="${arg}" || {
+                    LOG warn "Two inputs, Ignoring ${arg}"
+                }
+            fi
+            ;;
+    esac
+done
 
-    [[ -z "${input}" ]] && {
-        LOG error "Input '${input}' is empty"
-        return 1
-    }
+[[ -z "${input}" ]] && {
+    LOG error "Input '${input}' is empty"
+    return 1
+}
 
-    [[ -n "${save_path}" ]] && {
-        printf "%s: " "Create this file? (y)es|(n)o"
-        read -r YES
-        [[ "${YES}" =~ ^(Yes|yes|y)$ ]] && touch "${save_path}"
-    }
+[[ -n "${save_path}" ]] && {
+    printf "%s: " "Create this file? (y)es|(n)o"
+    read -r YES
+    [[ "${YES}" =~ ^(Yes|yes|y)$ ]] && touch "${save_path}"
+}
 
-    if [[ ! -f "${input}" ]]; then
-        # RotTransform encode|decode InputType Input FilePath
-        RotTransform "${operation}" "text" "${input}" "${save_path}"
-    else
-        # RotTransform encode|decode InputType Input FilePath
-        RotTransform "${operation:-"encode"}" "file" "${input}" "${save_path}"
-    fi
+if [[ ! -f "${input}" ]]; then
+    # RotTransform encode|decode InputType Input FilePath
+    RotTransform "${operation}" "text" "${input}" "${save_path}"
+else
+    # RotTransform encode|decode InputType Input FilePath
+    RotTransform "${operation:-"encode"}" "file" "${input}" "${save_path}"
+fi
 }
 
 ### C boilerplate code
 function C_boilerplate() {
     local FILE="$1"
-cat > "${FILE}" << EOF
+    cat > "${FILE}" << EOF
 # include <stdio.h>
 
 # define EXIT_SUCCESS 0
@@ -291,7 +302,7 @@ EOF
 ### C++ boilerplate code
 function Cpp_boilerplate() {
     local FILE="$1"
-cat > "${FILE}" << EOF
+    cat > "${FILE}" << EOF
 # include <iostream>
 
 # define EXIT_SUCCESS 0
@@ -369,8 +380,9 @@ function Extract() {
     esac
 }
 
-function MountDrive() {
-    emulate -LR bash
+### Mount the remote
+function RcloneMount() {
+    [[ -n $ZSH_VERSION ]] && emulate -LR bash
     RequiredTools 0
     local -a ARGS=("$@") matches=()
     local action="${ARGS[0]}" drive="${ARGS[1]}" mountPoint="${ARGS[2]}"
@@ -379,9 +391,9 @@ function MountDrive() {
 
     [[ $# -eq 0 ]] && {
         LOG error "At least one arguemnt expected"
-        LOG info "$0 <show-size|list|mount|umount> drive"
-        return 1
-    }
+            LOG info "$0 <show-size|list|mount|umount> drive"
+            return 1
+        }
 
     if [[ -n "$action" ]]; then
         case "$action" in
@@ -397,47 +409,47 @@ function MountDrive() {
         [[ -n "${drive#*=}" ]] && {
             drive="${drive#*=}"
         }
-        [[ -n $BASH_VERSION ]] && mapfile -t matches < <(rclone listremotes | grep --color=never -i "${drive}")
-        [[ -n $ZSH_VERSION ]] && {
-            matches=("$(rclone listremotes | grep --color=never -i ${drive})")
-        }
-
-        if [[ ${#matches[@]} -eq 1 ]]; then
-            drive=${matches[0]}
-        elif [[ ${#matches[@]} -gt 1 ]]; then
-            LOG error "Ambiguous drive name: multiple remotes: '${matches[*]}'"
-            printf "Full Name of the remote: "
-            read -r REMOTE
-            drive="${REMOTE}"
-        else
-            LOG error "No remotes found"
-            return 1
-        fi
-
-        [[ "${drive}" != *: ]] && drive+=:
-        [[ -z "${drive}" ]] && {
-            LOG error "No remotes. Exiting"
-            return 1
-        }
-        LOG info "Remote: ${drive}"
-    fi
-
-    if [[ -n "${mountPoint}" ]]; then
-        [[ -n "${mountPoint#*=}" ]] && {
-            mountPoint="${mountPoint#*=}"
-        }
-        mkdir -p "${mountPoint}"
-        [[ -d "${mountPoint}" ]] || LOG warn "Mount point '${mountPoint}' does not exist"
-    fi
-
-    [[ $list -eq 1 ]] && {
-        rclone listremotes
+    [[ -n $BASH_VERSION ]] && mapfile -t matches < <(rclone listremotes | grep --color=never -i "${drive}")
+    [[ -n $ZSH_VERSION ]] && {
+        matches=("$(rclone listremotes | grep --color=never -i ${drive})")
     }
 
-    [[ -n "${drive}" ]] || {
-        LOG error "Remote is empty"
+    if [[ ${#matches[@]} -eq 1 ]]; then
+        drive=${matches[0]}
+    elif [[ ${#matches[@]} -gt 1 ]]; then
+        LOG error "Ambiguous drive name: multiple remotes: '${matches[*]}'"
+        printf "Full Name of the remote: "
+        read -r REMOTE
+        drive="${REMOTE}"
+    else
+        LOG error "No remotes found"
+        return 1
+    fi
+
+    [[ "${drive}" != *: ]] && drive+=:
+    [[ -z "${drive}" ]] && {
+        LOG error "No remotes. Exiting"
         return 1
     }
+    LOG info "Remote: ${drive}"
+        fi
+
+        if [[ -n "${mountPoint}" ]]; then
+            [[ -n "${mountPoint#*=}" ]] && {
+                mountPoint="${mountPoint#*=}"
+            }
+        mkdir -p "${mountPoint}"
+        [[ -d "${mountPoint}" ]] || LOG warn "Mount point '${mountPoint}' does not exist"
+        fi
+
+        [[ $list -eq 1 ]] && {
+            rclone listremotes
+        }
+
+    if [[ -z "${drive}" && $listremotes -eq 0 ]]; then
+        LOG error "Remote is empty"
+        return 1
+    fi
 
     [[ $mount -eq 1 && $umount -eq 1 ]] && {
         LOG warn "--mount and --umount cannot be together"
@@ -449,11 +461,11 @@ function MountDrive() {
     }
 
     if [[ $umount -eq 1 ]]; then
-        [[ -z ${mountPoint} ]] && mountPoint=$(grep "${drive}" --color=always /proc/mounts | cut -d' ' -f2)
+        [[ -z ${mountPoint} ]] && mountPoint=$(grep --color=never "${drive}" /proc/mounts | cut -d' ' -f2)
         if [[ -d "${mountPoint}" ]]; then
             fusermount -uz "${mountPoint}" || echo "Cannot remove '${DIR}'"
             rm -rf "${mountPoint}" && \
-                echo -e "Cleaned '${mountPoint}'"
+                echo -e "Cleaned '$(grep --color=always "${drive}" /proc/mounts | cut -d' ' -f2)'"
         fi
         return 0
     fi
@@ -464,10 +476,11 @@ function MountDrive() {
             grep "${mountPoint}" --color=always /proc/mounts
         fi
     fi
+    return 0
 }
 
 ### Suppliment function for compilation functions
-function CompilationExitHandler() {
+function _compileExitHandler() {
     local exit_code="$1"
     shift
     local no_ext_filename="$1"
@@ -476,85 +489,27 @@ function CompilationExitHandler() {
     local -a total_files=()
     [[ $exit_code -gt 0 ]] && {
         LOG error "${RED}Compilation Failed${NC}"
-        LOG error "Program exited with code : $exit_code"
-        # Just return if compilation is failed
-        return 1
-    }
+            LOG error "Program exited with code : $exit_code"
+            # Just return if compilation is failed
+            return 1
+        }
     for arg in "$@"; do
         if [[ "${arg}" == -* ]]; then
-            [[ "${arg}" =~ ^(--rm|--remove|-rm|-r)$ ]] && {
-                RM=1
-            }
+            [[ "${arg}" =~ ^(--rm|--remove|-rm|-r)$ ]] && RM=1
         else
             total_files+=("${arg}")
         fi
     done
+
     "${no_ext_filename}" "${total_files[@]}" # Run the compiled binary
 
     if [[ $RM -eq 1 ]]; then
-        rm -f "${no_ext_filename}" && {
+        if rm -f "${no_ext_filename}"; then
             LOG info "Cleaned: ${no_ext_filename}"
-        } || {
+        else
             LOG error "Failed to remove: ${no_ext_filename}"
-        }
+        fi
     fi
-}
-
-### C stuff
-function C_cc() {
-    local file="$(realpath $1)"
-    local no_ext_filename="${file%.*}"
-    shift
-    gcc -pedantic -Wall -Wextra -lstdc++ \
-        "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "${no_ext_filename}" "$@"
-}
-
-function C_cc_DEBUG() {
-    local file="$(realpath $1)"
-    local no_ext_filename="${file%.*}"
-    shift
-    gcc -pedantic -Wall -Wextra -Werror -DDEBUG -lstdc++ \
-        "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "${no_ext_filename}" "$@"
-}
-
-function Cpp_cc() {
-    local file="$(realpath $1)"
-    local no_ext_filename="${file%.*}"
-    shift
-    gcc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra \
-        -fno-elide-constructors \
-        "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "${no_ext_filename}" "$@"
-}
-
-function Cpp_cc_DEBUG() {
-    local file="$(realpath $1)"
-    local no_ext_filename="${file%.*}"
-    shift
-    gcc -x c++ -lstdc++ -std=c++20 -pedantic -Wall -Wextra \
-        -Werror -DDEBUG  -fno-elide-constructors \
-        "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "${no_ext_filename}" "$@"
-}
-
-function C_clang() {
-    local file="$(realpath $1)"
-    local no_ext_filename="${file%.*}"
-    shift
-    clang -pedantic -Wall -Wextra \
-        "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "${no_ext_filename}" "$@"
-}
-
-function Cpp_clang() {
-    local file="$(realpath $1)"
-    local no_ext_filename="${file%.*}"
-    shift
-    clang++ -pedantic -Wall -Wextra \
-        "${file}" -o "${no_ext_filename}"
-    CompilationExitHandler $? "${no_ext_filename}" "$@"
 }
 
 function GUI_BUILD_DEBUG() {
@@ -565,7 +520,7 @@ function GUI_BUILD_DEBUG() {
         -Wshadow -pedantic -O0 -fno-inline -lstdc++ -lglfw -lGL -lglad -lm \
         "${FILE}" -o "${NO_EXT_FILENAME}" && "${NO_EXT_FILENAME}"
     "${NO_EXT_FILENAME}"
-    CompilationExitHandler $? "${NO_EXT_FILENAME}" "$@"
+    _compileExitHandler $? "${NO_EXT_FILENAME}" "$@"
 }
 
 function GUI_BUILD_RELEASE() {
@@ -577,7 +532,125 @@ function GUI_BUILD_RELEASE() {
         -lstdc++ -lglfw -lGL -lglad -lm \
         "${FILE}" -o "${NO_EXT_FILENAME}" && "${NO_EXT_FILENAME}"
     "${NO_EXT_FILENAME}"
-    CompilationExitHandler $? "${NO_EXT_FILENAME}" "$@"
+    _compileExitHandler $? "${NO_EXT_FILENAME}" "$@"
+}
+
+# Predefined compiler flags for C/C++ source units
+function Compile() {
+    [[ -n $ZSH_VERSION ]] && emulate -LR bash
+    local -a args=("$@")
+    local -a files=()
+    local -a cmd_flags=() c_sources=() cpp_sources=()
+    local arg="" out_="" output="main___" CC_="gcc"
+    local -i remove_output=0 debug=0
+
+    arg=""; for ((i=0; i < ${#args[@]}; i++ )); do
+        arg="${args[$i]}"
+        if [[ "${arg}" == -* ]]; then
+            case "${arg}" in
+                -rm|--rm|--remove)
+                    remove_output=1
+                    ;;
+                -o|--output)
+                    output="${arg}"
+                    ;;
+                -o=*|--output=*)
+                    output="${arg#*=}"
+                    [[ -z "${output}" ]] && output="main___"
+                    ;;
+                -clang|--clang)
+                    CC_="clang"
+                    ;;
+                -clang=*|--clang=*)
+                    CC_="${arg#*=}"
+                    [[ -z "${CC_}" ]] && CC_="gcc"
+                    ;;
+                *)
+                    LOG error "Invalid flag: '${arg}'"
+                    ;;
+            esac
+        else
+            [[ -s "${arg}" && -f "${arg}" ]] && files+=( "${arg}" ) || LOG error "Not a file: '${arg}'"
+        fi
+    done
+
+    arg=""; for ((i=0; i < ${#files[@]}; i++ )); do
+        arg="${args[$i]}"
+        case "${arg}" in
+            *.[cC]++|*.[cC][pP][pP])
+                cpp_sources+=( "${arg}" )
+            ;;
+            *.[cC])
+                c_sources+=( "${arg}" )
+            ;;
+            *)
+                LOG error "Not a valid sources file: '${arg}'"
+            ;;
+        esac
+    done
+
+    if [[ ${#cpp_sources[@]} > 0 ]]; then
+        cmd_flags=()
+        cmd_flags+=( "-x" "c++" "-std=c++20" )
+        cmd_flags+=( "-lstdc++" )
+        cmd_flags+=( "-pedantic" "-Wall" "-Wextra" "-Werror" )
+        [[ $debug -eq 1 ]] && cmd_flags+=( "-DDEBUG" )
+        cmd_flags+=( "-fno-elide-constructors" )
+
+        LOG info "$CC_ ${cmd_flags[*]} ${cpp_sources[*]} -o ${output}"
+        $CC_ "${cmd_flags[@]}" "${cpp_sources[@]}" -o "${output}"
+        LOG info "Running: ${output}: "
+        local lines out_
+        if ! out_="$(./${output})"; then
+            LOG error "Execution failed"
+        fi
+
+        if [[ -n "${ZSH_VERSION}" ]]; then
+            lines=("${(f)out_}")
+        else
+            mapfile -t lines <<< "${out_}"
+        fi
+
+        for line in "${lines[@]}"; do
+            printf "    %b\n" "${line}"
+        done
+
+        if [[ $remove_output -eq 1 ]]; then
+            rm -f "${output}" && LOG info "cleaned: '${output}'"
+        fi
+        printf "\n"
+    fi
+
+    if [[ ${#c_sources[@]} > 0 ]]; then
+        cmd_flags=()
+        cmd_flags+=( "-lstdc++" )
+        cmd_flags+=( "-pedantic" "-Wall" "-Wextra" "-Werror" )
+        [[ $debug -eq 1 ]] && cmd_flags+=( "-DDEBUG" )
+
+        LOG info "$CC_ ${cmd_flags[*]} ${c_sources[*]} -o ${output}"
+        $CC_ "${cmd_flags[@]}" "${c_sources[@]}" -o "${output}"
+        LOG info "Running: ${output}: "
+        local lines out_
+        if ! out_="$(./${output})"; then
+            LOG error "Execution failed"
+        fi
+
+        if [[ -n "${ZSH_VERSION}" ]]; then
+            lines=("${(f)out_}")
+        else
+            mapfile -t lines <<< "${out_}"
+        fi
+
+        for line in "${lines[@]}"; do
+            printf "    %b\n" "${line}"
+        done
+
+        if [[ $remove_output -eq 1 ]]; then
+            rm -f "${output}" && LOG info "cleaned: '${output}'"
+        fi
+        printf "\n"
+    fi
+
 }
 
 ### Lauch sway Window manager with vulkan
@@ -612,8 +685,8 @@ function sway_vulkan() {
         LOG info "Sway was started with $WLR_DRM_DEVICES"
     } || {
         LOG error "Sway cannot start with $WLR_DRM_DEVICES"
-        [[ -s "$LOG_FILE" ]] && cat "$LOG_FILE"
-    }
+            [[ -s "$LOG_FILE" ]] && cat "$LOG_FILE"
+        }
 }
 
 function SetPath() {
@@ -628,9 +701,10 @@ function SetPath() {
         PATH="$(cat ${tmp_path})"
         export PATH
     fi
-}; SetPath
+}
 
-function SshAgent() {
+### Start SSH agent on initial login
+function SSHAgent() {
     local ssh_agent="/tmp/.ssh_agent"
     if [[ ! -s "${ssh_agent}" ]]; then
         touch "${ssh_agent}"
@@ -638,7 +712,7 @@ function SshAgent() {
     else
         source ${ssh_agent} &> /dev/null
     fi
-}; SshAgent
+}
 
 ### Update my Arch Linux
 function Update() {
@@ -659,13 +733,74 @@ function Update() {
     fi
 }
 
+### Get randomcolors quickly
 function RandomColors() {
     local format="$1"
     pastel random | pastel format "${format:-"hex"}"
 }
 
+### AI in terminal
+function gpt() {
+    local type_="$1"
+    [[ $# -gt 0 ]] && shift
+    local -a prompt_=("$@")
+    local session_log="/tmp/.tgpt_TYPE_$(date +%F_%T).log"
+    case "${type_}" in
+        dev)
+            AI_PROVIDER=phind tgpt --multiline --log "${session_log/TYPE/phind}"
+            ;;
+        img)
+            local img_path="${HOME}/Pictures/tgpt/"
+            mkdir -p "${img_path}"
+            img_path+="tgpt_$(date +%F_%T).png"
+            tgpt --img --out "${img_path}" --width 512 --height 512 "${prompt_[*]}" && \
+                LOG info "Your imge: $(ColorPath "${img_path}")"
+            ;;
+        *)
+            AI_PROVIDER=pollinations tgpt --multiline --log "${session_log/TYPE/pollinations}"
+            ;;
+    esac
+}; alias devgpt='gpt dev'; alias gptimg='gpt img'
+
+### Cat bat
+function catbat() {
+    local -a args=("$@")
+    local -a batargs=()
+    for arg in "${args[@]}"; do
+        case "${arg}" in
+            *.conf)
+                batargs+=("--language=ini" "${arg}")
+                ;;
+            *)
+                batargs+=("${arg}")
+                ;;
+        esac
+    done
+    /usr/bin/bat --theme-dark=TwoDark --color=always --decorations=never --paging=never "${batargs[@]}"
+}
+
+### Spanish lessons
+function Spanish() {
+    local file="${HOME}/Notes/Language/Spanish/Lesson_$(( $(date +%s)/86400 - 20152))_$(date +%d-%b-%Y_).md"
+
+    if [[ ! -f "${file}" ]]; then
+        touch "${file}"
+        LOG info "Created ${GREEN}$(ColorPath "${file}")${NC}"
+    fi
+
+    if [[ -n "${EDITOR}" ]]; then
+        command -v "$EDITOR" > /dev/null 2>&1 || EDITOR="vim"
+        "${EDITOR:-"vim"}" "${file}"
+        return 0
+    else
+        LOG error "Your EDITOR variable is unset. Please update it."
+    fi
+
+}
+
+### Grammer checker
 function grammer_check() {
-    emulate -LR bash
+    [[ -n $ZSH_VERSION ]] && emulate -LR bash
     local arg="$1"
     local raw_text
 
@@ -686,32 +821,32 @@ function grammer_check() {
         --data-urlencode "language=en-US" \
         --data-urlencode "text=$clean_text")
 
-    # Check for valid JSON
-    if ! echo "$json" | jq . >/dev/null 2>&1; then
-        echo "❌ jq failed to parse the response. Possibly invalid input or corrupted JSON."
-        return 1
-    fi
+        # Check for valid JSON
+        if ! echo "$json" | jq . >/dev/null 2>&1; then
+            echo "❌ jq failed to parse the response. Possibly invalid input or corrupted JSON."
+            return 1
+        fi
 
-    local red=$(tput setaf 1)
-    local green=$(tput setaf 2)
-    local yellow=$(tput setaf 3)
-    local reset=$(tput sgr0)
+        local red=$(tput setaf 1)
+        local green=$(tput setaf 2)
+        local yellow=$(tput setaf 3)
+        local reset=$(tput sgr0)
 
-    echo "$json" | jq -r --arg red "$red" --arg green "$green" --arg yellow "$yellow" --arg reset "$reset" '
+        echo "$json" | jq -r --arg red "$red" --arg green "$green" --arg yellow "$yellow" --arg reset "$reset" '
         if (.matches | length) == 0 then
             "\($green)No issues found ✅\($reset)"
         else
             .matches[] |
-            "\($red)Error:\($reset) \(.message)\n" +
+                "\($red)Error:\($reset) \(.message)\n" +
             "\($yellow)Context:\($reset) \"\(.context.text)\"\n" +
             "\($green)Suggestion(s):\($reset) " +
             (if (.replacements | length) > 0 then
-                (.replacements | map(.value) | join(", "))
-             else
-                "None"
-             end) + "\n" +
-            "Offset: \(.offset)\n---"
-        end
+            (.replacements | map(.value) | join(", "))
+        else
+            "None"
+        end) + "\n" +
+        "Offset: \(.offset)\n---"
+    end
     '
 }
 
@@ -753,14 +888,15 @@ function Pretty_rename() {
 ### Download any video
 function Yt-dlp_download() {
     local url="$@"
-    yt-dlp -f "bestvideo[height<=1080]+bestaudio/audio[height<=1080]" "$url"
+    yt-dlp -f "bestvideo[height<=1080]+bestaudio/audio[height<=1080]" "${url[@]}"
 }
 
+### Get Ip and location info for current Network
 function Ip() {
     command -v curl &> /dev/null || {
         LOG error "'curl' not installed"
-        return 1
-    }
+            return 1
+        }
     if command -v bat &> /dev/null; then
         bat --decorations=never --color=always --paging=never --language json <<< $(curl -s -4 ipinfo.io)
     else
@@ -785,4 +921,7 @@ function man() {
     local args=($@)
     /usr/bin/man ${args[@]} | /usr/bin/bat --decorations=never --color=always --language=markdown 2> /dev/null
 }
+
+SetPath
+SSHAgent
 

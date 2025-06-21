@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-trap Exit SIGINT SIGTERM
+trap 'Exit' SIGINT SIGTERM
 
 SCRIPT_PATH="$(realpath "$0")"
 CURRENT_PID=$$
 
-pgrep -f "${SCRIPT_PATH}" | grep -v "^${CURRENT_PID}\$" | xargs -r kill
+pgrep -f "${SCRIPT_PATH}" | grep -v "^${CURRENT_PID}$" | xargs -r kill
 
 MPV_SOCKET="/tmp/.mpv_socket"
 isPlaying=0
