@@ -76,7 +76,7 @@ font pango: SourceCodePro Large 4
 ### Set $mod (Mod4 or Super) for logo key ###
     set $mod Super
 
-    # Alphabets kecodes if I need
+    # Alphabets kecodes if I need any
     set $backslash 51
     set $A  38
     set $B  56
@@ -330,7 +330,7 @@ font pango: SourceCodePro Large 4
                     '$(DIR="${HOME}/Grim_Screenshots"; [[ ! -d "${DIR}" ]] && mkdir -p "${DIR}"; grim -g "$(slurp)" "${DIR}/$(date +%d-%b-%Y_%H:%M:%S).png")'
 
         # Edit this (sway config) with neovim or vim
-            bindsym $mod+I exec bash -c \
+            bindsym $mod+Shift+I exec bash -c \
                 'CONF=${HOME}/.config/sway/config; command -v nvim && EDIT=nvim || EDIT=vim; foot ${EDIT} ${CONF}'
 
         # Shutdown (Mod+Alt+Shift+P)

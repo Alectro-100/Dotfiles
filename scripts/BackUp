@@ -153,11 +153,17 @@ function CloneRepo() {
         INFO "Repository clone at '${BLUE}${DIR}${NC}'"
 }
 
-function PushRepo() {
+function PushToRepo() {
     local force="$1"
     local satisfied=""
     local should_continue=""
     local should_commit=""
+    local commit_template_file=""
+    for file in ~/.git_commit_template_file ~/.gitmessage ~/.git_template; do
+        [[ -s "${file}" ]] && commit_template_file="${file}"
+    done
+
+    [[ -z "${commit_template_file}" ]] && commit_template_file=<( printf "[tag] module: what changed\n\n" )
 
     [[ -z "${USERNAME}" ]] && {
         ERROR "No github username given"
@@ -183,8 +189,13 @@ function PushRepo() {
     if [[ "${satisfied}" =~ ^(y|yes|Yes)$ ]]; then
         printf "%s: " "Commit? (y|n)"; read -r should_commit
         [[ "${should_commit}" =~ ^(y|yes|Yes)$ ]] || return 1
-        git commit --template=<( printf "[tag] module: what changed\n\n" ) && \
+        if git commit --template="${commit_template_file}"; then
             INFO "Successfully commited the changes"
+        else
+             if ! git diff --quiet --staged && git diff --quiet --staged; then
+                 ERROR "Commit failed" && exit 1
+             fi
+        fi
     else
         INFO "Commit aborted"
         printf "%s: " "Continue to commit?"; read -r should_continue
@@ -365,9 +376,11 @@ function main() {
 
     echo && INFO "Dotfile directory: ${BLUE}${GIT_DIR}${NC}\n"
 
-    [[ $should_push -eq 1 ]] && {
-        PushRepo "${force}"
-    }
+    if [[ $should_push -eq 1 ]]; then
+        PushToRepo "${force}"
+    else
+        return 0
+    fi
 }
 
 main "$@"

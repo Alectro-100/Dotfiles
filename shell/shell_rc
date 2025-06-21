@@ -161,7 +161,8 @@ function RequiredTools() {
         fi
     done
     return 0
-}; alias goodies="RequiredTools"; alias availabletools="RequiredTools"; alias mytools="RequiredTools"
+}; alias goodies="RequiredTools"; alias availabletools="RequiredTools"
+alias mytools="RequiredTools"; alias tools="RequiredTools"
 
 function RotTransform() {
     local operation_type="$1"
@@ -369,7 +370,7 @@ function Extract() {
     esac
 }
 
-function MountDrive() {
+function RcloneMount() {
     emulate -LR bash
     RequiredTools 0
     local -a ARGS=("$@") matches=()

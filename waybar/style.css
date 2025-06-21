@@ -198,18 +198,25 @@ button:hover {
 #battery.critical:not(.charging) {
     color: #FF2222;
     background-color: #F53C3C;
+    padding: 0 5px;
+    margin: 4px 4px;
+    min-width: 16px;
+    border-radius: 8%;
     animation-name: blink;
-    animation-duration: 0.5s;
+    animation-duration: 0.8s;
     animation-timing-function: steps(12);
     animation-iteration-count: infinite;
     animation-direction: alternate;
 }
 
 @keyframes blink {
-    to {
-        color: #000000;
-        background-color: #FFFFFF;
-    }
+    /* to { */
+    /*     color: rgba(224, 48, 42, 0.8); */
+    /*     background-color: rgba(0, 48, 42, 1); */
+    /* } */
+    0%   { color: rgba(224, 48, 42, 1) ; opacity: 1; background-color: transparent }
+    100% { color: rgba(222, 95, 122, 1) ; opacity: 1; background-color: transparent }
+
 }
 
 #power-profiles-daemon {
